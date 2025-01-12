@@ -1,0 +1,148 @@
+$foreground: ansi_white;
+$border: ansi_blue;
+$border-blurred: ansi_blue;
+$surface: ansi_black;
+$accent: ansi_yellow;
+$boost: ansi_green;
+$background: transparent;
+
+$input-cursor-background: ansi_black;
+$input-cursor-foreground: ansi_white;
+$block-cursor-background: ansi_black;
+$block-cursor-foreground: ansi_white;
+$block-cursor-blurred-background: ansi_black;
+$block-cursor-blurred-foreground: ansi_white;
+$block-hover-background: ansi_black;
+
+$background-cp: transparent;
+
+
+
+
+CommandPalette {
+  background: transparent;
+
+  &>Vertical {
+    margin-top: 2;
+    height: 100%;
+    width: 70%;
+    min-width: 80;
+    visibility: hidden;
+    background: $surface;
+
+    &:dark {
+      background: transparent;
+    }
+  }
+
+  &>.command-palette--help-text {
+    color: $text-muted;
+    background: transparent;
+    text-style: not bold italic;
+  }
+
+  & #--input {
+    height: 3;
+    padding: 0;
+    margin: 0;
+    visibility: visible;
+    border: round $border;
+    background: $background-cp;
+
+    &.--list-visible {
+      border-bottom: none;
+    }
+
+    SearchIcon {
+      margin: 0 1;
+    }
+
+    CommandInput {
+      margin: 0;
+      border: none;
+      background: $background-cp;
+    }
+
+    Label {
+      margin-top: 0;
+      margin-left: 0;
+    }
+  }
+
+  & #--results {
+    overlay: screen;
+  }
+
+  & LoadingIndicator {
+    height: auto;
+    visibility: hidden;
+    border-bottom: hkey $border;
+  }
+
+  & LoadingIndicator.--visible {
+    visibility: visible;
+  }
+}
+
+
+CommandList {
+  visibility: hidden;
+  height: auto;
+  max-height: 70vh;
+  background: $background-cp;
+  padding: 0;
+  border: round $border;
+  border-top: none;
+
+  &.--visible {
+    visibility: visible;
+  }
+
+  &:focus {
+    border: blank;
+  }
+
+  &>.option-list--option-highlighted {
+    color: $block-cursor-blurred-foreground;
+    background: $block-cursor-blurred-background;
+    text-style: $block-cursor-blurred-text-style;
+  }
+
+  &>.option-list--option {
+    padding: 0 2;
+    color: $foreground;
+    text-style: bold;
+  }
+
+  &:nocolor>.option-list--option-highlighted {
+    text-style: reverse;
+  }
+
+}
+
+
+# Datatable
+DataTable {
+    background: $background;
+    width: 100%;
+}
+.datatable--cursor {
+    text-style: reverse;
+    background: $background;
+}
+.datatable--header {
+    background: ansi_black;
+}
+.datatable--fixed {
+    background: ansi_black;
+}
+.datatable--label {
+    background: $background;
+    color: ansi_black;
+    visibility: hidden;
+}
+.datatable--header-cursor {
+    background: $background;
+    color: $boost;
+    text-style: not reverse;
+}
