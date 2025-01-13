@@ -1,6 +1,6 @@
-
 from rich.console import RenderableType
 from rich.highlighter import ReprHighlighter
+from rich.text import Text
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal
@@ -10,8 +10,6 @@ from textual.reactive import reactive
 from textual.widgets import Footer, RichLog, Static
 
 from bamboost_tui._datatable import CollectionTable
-
-highlighter = ReprHighlighter()
 
 
 class RowIndicator(Static):
@@ -39,6 +37,18 @@ class RowIndicator(Static):
         self.position = coord.row
 
 
+REPR_HIGHLIGHTER = ReprHighlighter()
+
+
+def cell_highlighter(datum):
+    return REPR_HIGHLIGHTER(
+        Text(
+            str(datum),
+            justify="right" if str(datum).isnumeric() else "left",
+        )
+    )
+
+
 class Bamboost(App):
     CSS_PATH = "bamboost.tcss"
     BINDINGS = [
@@ -48,7 +58,10 @@ class Bamboost(App):
 
     def compose(self) -> ComposeResult:
         yield Horizontal(
-            RowIndicator(), CollectionTable(header_height=2, cursor_type="cell", cell_highlighter=highlighter)
+            # RowIndicator(),
+            CollectionTable(
+                header_height=2, cursor_type="cell", cell_highlighter=cell_highlighter
+            ),
         )
         yield RichLog()
         yield Footer()

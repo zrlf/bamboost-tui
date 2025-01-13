@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from itertools import zip_longest
+from typing import Callable
 
 import pandas as pd
 from bamboost.index import DEFAULT_INDEX
@@ -36,8 +37,8 @@ class CollectionTable(DataTable):
         "datatable--label",
     }
 
-    def __init__(self, cell_highlighter: Highlighter | None = None, *args, **kwargs):
-        self.highlighter = cell_highlighter or ReprHighlighter()
+    def __init__(self, cell_highlighter: Callable[[object], Text] | None = None, *args, **kwargs):
+        self.highlighter = cell_highlighter
         super().__init__(*args, **kwargs)
 
     def on_mount(self):
@@ -233,12 +234,7 @@ class CollectionTable(DataTable):
                 _EMPTY_TEXT
                 if datum is None
                 else default_cell_formatter(
-                    highlighter(
-                        Text(
-                            str(datum),
-                            justify="right" if str(datum).isnumeric() else "left",
-                        )
-                    ),
+                    self.highlighter(datum) if self.highlighter else datum,
                     wrap=row_metadata.height != 1,
                     height=row_metadata.height,
                 )
