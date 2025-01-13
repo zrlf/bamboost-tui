@@ -1,15 +1,16 @@
+from functools import partial
 from rich.console import RenderableType
 from rich.highlighter import ReprHighlighter
 from rich.text import Text
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.containers import Horizontal
+from textual.containers import Container
 from textual.coordinate import Coordinate
 from textual.geometry import Offset
 from textual.reactive import reactive
 from textual.widgets import Footer, RichLog, Static
 
-from bamboost_tui._datatable import CollectionTable
+from bamboost_tui.collection_table import CollectionTable
 
 
 class RowIndicator(Static):
@@ -37,34 +38,29 @@ class RowIndicator(Static):
         self.position = coord.row
 
 
-REPR_HIGHLIGHTER = ReprHighlighter()
-
-
-def cell_highlighter(datum):
-    return REPR_HIGHLIGHTER(
-        Text(
-            str(datum),
-            justify="right" if str(datum).isnumeric() else "left",
-        )
-    )
-
 
 class Bamboost(App):
     CSS_PATH = "bamboost.tcss"
     BINDINGS = [
         Binding("ctrl+c", "quit", "quit", priority=True, show=False),
+        Binding("ctrl+z", "suspend_process"),
         Binding("q", "quit", "quit"),
     ]
 
     def compose(self) -> ComposeResult:
-        yield Horizontal(
-            # RowIndicator(),
+        # RowIndicator(),
+        yield Container(
             CollectionTable(
-                header_height=2, cursor_type="cell", cell_highlighter=cell_highlighter
             ),
+            id="table-container",
         )
-        yield RichLog()
         yield Footer()
 
     def on_mount(self) -> None:
-        pass
+        def refresh(self, *_args, **_kwargs):
+            self.refresh()
+        self.app_resume_signal.subscribe(self, refresh)
+
+
+if __name__ == "__main__":
+    Bamboost(watch_css=True, ansi_color=False).run()

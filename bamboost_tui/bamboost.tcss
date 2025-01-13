@@ -5,14 +5,15 @@ $surface: ansi_black;
 $accent: ansi_yellow;
 $boost: ansi_green;
 $background: transparent;
+$primary: ansi_blue;
 
-$input-cursor-background: ansi_black;
-$input-cursor-foreground: ansi_white;
-$block-cursor-background: ansi_black;
-$block-cursor-foreground: ansi_white;
-$block-cursor-blurred-background: ansi_black;
-$block-cursor-blurred-foreground: ansi_white;
-$block-hover-background: ansi_black;
+$input-cursor-background: $surface;
+$input-cursor-foreground: $foreground;
+$block-cursor-background: $surface;
+$block-cursor-foreground: $foreground;
+$block-cursor-blurred-background: $surface;
+$block-cursor-blurred-foreground: $foreground;
+$block-hover-background: $surface;
 
 $background-cp: transparent;
 
@@ -20,33 +21,49 @@ $background-cp: transparent;
 }
 
 
+# ---------------------------------------------
+# TOAST
+# ---------------------------------------------
+Toast {
+    padding: 1 3;
+    border-left: thick $accent;
+    background: $surface;
+}
+ToastRack {
+    margin: 0;
+    padding: 0;
+}
 
 
 # ---------------------------------------------
 # DATATABLE
 # ---------------------------------------------
+#table-container {
+    border: none $border;
+}
+
 DataTable {
     background: $background;
     scrollbar-size: 0 0;
+    color: $foreground;
 }
 .datatable--cursor {
-    text-style: bold reverse;
-    background: $background;
-    color: $accent;
+    text-style: bold;
+    background: $surface;
 }
 .datatable--header {
-    background: ansi_black;
+    background: $background;
 }
 .datatable--fixed {
-    background: ansi_black;
+    background: $background;
+    color: $primary;
 }
 .datatable--fixed-cursor {
-    color: $accent;
+    background: $surface;
 }
 .datatable--header-cursor {
-    background: $background;
-    color: $boost;
-    text-style: not reverse;
+    background: $surface;
+    color: $primary;
 }
 
 RowIndicator {

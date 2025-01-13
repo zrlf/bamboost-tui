@@ -1,80 +1,86 @@
 from __future__ import annotations
 
+from enum import Enum
 from itertools import zip_longest
-from typing import Callable
+from typing import Callable, Literal, overload
 
-import pandas as pd
-from bamboost.index import DEFAULT_INDEX
 from rich.console import RenderableType
-from rich.highlighter import Highlighter, ReprHighlighter
+from rich.padding import Padding
 from rich.segment import Segment
 from rich.style import Style
 from rich.text import Text
 from textual._types import SegmentLines
-from textual.binding import Binding
 from textual.color import Color
 from textual.coordinate import Coordinate
-from textual.widgets import DataTable, RichLog
+from textual.renderables.styled import Styled
+from textual.widgets import DataTable
 from textual.widgets._data_table import (
     _EMPTY_TEXT,
+    ColumnKey,
+    CursorType,
     RowKey,
     RowRenderables,
     default_cell_formatter,
 )
 
-highlighter = ReprHighlighter()
+
+class SortOrder(Enum):
+    ASC = False
+    DESC = True
+
+    __symbols__ = {ASC: "", DESC: ""}
+
+    def __not__(self) -> SortOrder:
+        return SortOrder(not self.value)
+
+    @property
+    def symbol(self) -> str:
+        return self.__symbols__[self.value]
 
 
-class CollectionTable(DataTable):
-    BINDINGS = [
-        Binding("j", "cursor_down", "move cursor down", show=False),
-        Binding("k", "cursor_up", "move cursor up", show=False),
-        Binding("l", "cursor_right", "move cursor right", show=False),
-        Binding("h", "cursor_left", "move cursor left", show=False),
-        Binding("s", "sort_column", "sort column"),
-    ]
-    COMPONENT_CLASSES = DataTable.COMPONENT_CLASSES | {
-        "datatable--label",
-    }
+class ModifiedDataTable(DataTable):
+    def __init__(
+        self,
+        cell_highlighter: Callable[[object], Text] | None = None,
+        *,
+        show_header: bool = True,
+        show_row_labels: bool = True,
+        fixed_rows: int = 0,
+        fixed_columns: int = 0,
+        zebra_stripes: bool = False,
+        header_height: int = 1,
+        show_cursor: bool = True,
+        cursor_foreground_priority: Literal["renderable", "css"] = "css",
+        cursor_background_priority: Literal["renderable", "css"] = "renderable",
+        cursor_type: CursorType = "cell",
+        cell_padding: int = 1,
+        name: str | None = None,
+        id: str | None = None,
+        classes: str | None = None,
+        disabled: bool = False,
+    ):
+        self.highlighter = cell_highlighter or None
+        self._header_cell_render_cache = {}
+        self._sort_column: ColumnKey | None = None
+        self._sort_column_order = SortOrder.DESC
 
-    def __init__(self, cell_highlighter: Callable[[object], Text] | None = None, *args, **kwargs):
-        self.highlighter = cell_highlighter
-        super().__init__(*args, **kwargs)
-
-    def on_mount(self):
-        sims = DEFAULT_INDEX.collection("0FD8B0E3BE").simulations
-        tab = [i.as_dict(standalone=False) for i in sims]
-        df = pd.DataFrame.from_records(tab)
-        self.add_columns(*(str(i) for i in df.columns))
-
-        def cells(row):
-            for cell in row:
-                # hl = highlighter(str(cell))
-                # hl.justify = "right" if str(cell).isnumeric() else "left"
-                # yield hl
-                yield cell
-
-        for row in df.values:
-            self.add_row(*cells(row))
-
-        self.fixed_columns = 1
-
-        self.logger = self.screen.query_one(RichLog)
-
-    def action_sort_column(self):
-        key = self._column_locations.get_key(self.cursor_column)
-        if hasattr(self, "last_sort") and self.last_sort == key:
-            sort_reverse = not self.last_sort_reverse
-        else:
-            sort_reverse = False
-
-        self.sort(key, reverse=sort_reverse)
-        self.last_sort = key
-        self.last_sort_reverse = sort_reverse
-
-    def action_select_cursor(self):
-        super().action_select_cursor()
-        self.logger.write(self.get_cell_at(self.cursor_coordinate))
+        super().__init__(
+            show_header=show_header,
+            show_row_labels=show_row_labels,
+            fixed_rows=fixed_rows,
+            fixed_columns=fixed_columns,
+            zebra_stripes=zebra_stripes,
+            header_height=header_height,
+            show_cursor=show_cursor,
+            cursor_foreground_priority=cursor_foreground_priority,
+            cursor_background_priority=cursor_background_priority,
+            cursor_type=cursor_type,
+            cell_padding=cell_padding,
+            name=name,
+            id=id,
+            classes=classes,
+            disabled=disabled,
+        )
 
     def _render_line_in_row(
         self,
@@ -97,7 +103,8 @@ class CollectionTable(DataTable):
         Returns:
             Lines for fixed cells, and Lines for scrollable cells.
         """
-        cursor_type = self.cursor_type
+        # cursor_type = self.cursor_type
+        cursor_type = "row"
         show_cursor = self.show_cursor
 
         cache_key = (
@@ -248,7 +255,6 @@ class CollectionTable(DataTable):
             label = (
                 default_cell_formatter(
                     row_metadata.label,
-                    # ">" if row_index == self.cursor_row else "",
                     wrap=row_metadata.height != 1,
                     height=row_metadata.height,
                 )
@@ -256,3 +262,121 @@ class CollectionTable(DataTable):
                 else None
             )
         return RowRenderables(label, formatted_row_cells)
+
+    def _render_cell(
+        self,
+        row_index: int,
+        column_index: int,
+        base_style: Style,
+        width: int,
+        cursor: bool = False,
+        hover: bool = False,
+    ) -> SegmentLines:
+        """Render the given cell.
+
+        Args:
+            row_index: Index of the row.
+            column_index: Index of the column.
+            base_style: Style to apply.
+            width: Width of the cell.
+            cursor: Is this cell affected by cursor highlighting?
+            hover: Is this cell affected by hover cursor highlighting?
+
+        Returns:
+            A list of segments per line.
+        """
+        is_header_cell = row_index == -1
+        is_row_label_cell = column_index == -1
+
+        is_fixed_style_cell = (
+            not is_header_cell
+            and not is_row_label_cell
+            and (row_index < self.fixed_rows or column_index < self.fixed_columns)
+        )
+
+        if is_header_cell:
+            row_key = self._header_row_key
+        else:
+            row_key = self._row_locations.get_key(row_index)
+
+        column_key = self._column_locations.get_key(column_index)
+        cell_cache_key: CellCacheKey = (
+            row_key,
+            column_key,
+            base_style,
+            cursor,
+            hover,
+            self._show_hover_cursor,
+            self._update_count,
+            self._pseudo_class_state,
+        )
+
+        if is_header_cell:
+            if cell_cache_key in self._header_cell_render_cache:
+                return self._header_cell_render_cache[cell_cache_key]
+
+        if cell_cache_key in self._cell_render_cache and not is_header_cell:
+            return self._cell_render_cache[cell_cache_key]
+
+        base_style += Style.from_meta({"row": row_index, "column": column_index})
+        row_label, row_cells = self._get_row_renderables(row_index)
+
+        if is_row_label_cell:
+            cell = row_label if row_label is not None else ""
+        else:
+            cell = row_cells[column_index]
+
+        component_style, post_style = self._get_styles_to_render_cell(
+            is_header_cell,
+            is_row_label_cell,
+            is_fixed_style_cell,
+            hover,
+            cursor,
+            self.show_cursor,
+            self._show_hover_cursor,
+            self.cursor_foreground_priority == "css",
+            self.cursor_background_priority == "css",
+        )
+
+        if is_header_cell:
+            row_height = self.header_height
+            options = self.app.console.options.update_dimensions(width, row_height)
+            if (
+                self._sort_column
+                and self._column_locations.get(self._sort_column) == column_index
+            ):
+                cell = str(cell) + "\n" + self._sort_column_order.symbol
+            if self.cursor_column == column_index:
+                component_style += self.get_component_styles(
+                    "datatable--header-cursor"
+                ).rich_style
+        else:
+            # If an auto-height row hasn't had its height calculated, we don't fix
+            # the value for `height` so that we can measure the height of the cell.
+            row = self.rows[row_key]
+            if row.auto_height and row.height == 0:
+                row_height = 0
+                options = self.app.console.options.update_width(width)
+            else:
+                row_height = row.height
+                options = self.app.console.options.update_dimensions(width, row_height)
+
+        # If the row height is explicitly set to 1, then we don't wrap.
+        if row_height == 1:
+            options = options.update(no_wrap=True)
+
+        lines = self.app.console.render_lines(
+            Styled(
+                Padding(cell, (0, self.cell_padding)),
+                pre_style=base_style + component_style,
+                post_style=post_style,
+            ),
+            options,
+        )
+
+        if is_header_cell:
+            self._header_cell_render_cache[cell_cache_key] = lines
+            return lines
+
+        self._cell_render_cache[cell_cache_key] = lines
+        return lines
