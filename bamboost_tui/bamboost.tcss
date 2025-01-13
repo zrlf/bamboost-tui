@@ -16,9 +16,50 @@ $block-hover-background: ansi_black;
 
 $background-cp: transparent;
 
+* {
+}
 
 
 
+
+# ---------------------------------------------
+# DATATABLE
+# ---------------------------------------------
+DataTable {
+    background: $background;
+    scrollbar-size: 0 0;
+}
+.datatable--cursor {
+    text-style: bold reverse;
+    background: $background;
+    color: $accent;
+}
+.datatable--header {
+    background: ansi_black;
+}
+.datatable--fixed {
+    background: ansi_black;
+}
+.datatable--fixed-cursor {
+    color: $accent;
+}
+.datatable--header-cursor {
+    background: $background;
+    color: $boost;
+    text-style: not reverse;
+}
+
+RowIndicator {
+    width: 2;
+    background: $background;
+    color: $accent;
+    padding: 0;
+}
+
+
+# ---------------------------------------------
+# COMMAND PALETTE
+# ---------------------------------------------
 CommandPalette {
   background: transparent;
 
@@ -118,31 +159,4 @@ CommandList {
     text-style: reverse;
   }
 
-}
-
-
-# Datatable
-DataTable {
-    background: $background;
-    width: 100%;
-}
-.datatable--cursor {
-    text-style: reverse;
-    background: $background;
-}
-.datatable--header {
-    background: ansi_black;
-}
-.datatable--fixed {
-    background: ansi_black;
-}
-.datatable--label {
-    background: $background;
-    color: ansi_black;
-    visibility: hidden;
-}
-.datatable--header-cursor {
-    background: $background;
-    color: $boost;
-    text-style: not reverse;
 }
