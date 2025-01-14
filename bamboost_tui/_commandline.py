@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Callable, Iterable, List, Type
+from typing import TYPE_CHECKING, Callable, Iterable, List, Type
 
 import pandas as pd
 from rich.text import Text, TextType
@@ -18,6 +18,10 @@ from textual_autocomplete import (
     TargetState,
 )
 from typing_extensions import TypeAlias
+from textual.widgets.data_table import ColumnKey
+
+if TYPE_CHECKING:
+    from bamboost_tui.collection_table import CollectionTable
 
 
 class CMP(AutoComplete):
@@ -74,6 +78,7 @@ class Command:
     name: str
     arguments: list[Argument] = field(default_factory=list)
     options: dict[str, Option] = field(default_factory=dict)
+    callback: Callable = lambda: None
 
 
 CommandList: TypeAlias = List[Command]
@@ -122,28 +127,49 @@ class Parser:
         except IndexError:
             return None
 
+    def execute(self, text: str) -> None:
+        tokens = text.split()
+        command = self._commands[tokens[0]]
+        args = tokens[1:]
+
+        # if len(args) != len(command.arguments):
+        #     return
+
+        command.callback(*args)
+
 
 class CommandLine(Input):
     _cmp: CMP
     """The autocomplete component of this input widget."""
+    BINDINGS = [
+        Binding("enter", "execute"),
+    ]
 
-    def __init__(self, df: pd.DataFrame):
-        self.df = df
+    def __init__(self, collection_table: "CollectionTable"):
+        self._table = collection_table
+        self.df = collection_table.df
+        
+        def goto(column: str):
+            self.screen.query_one(RichLog).write(column)
+            self._table.move_cursor(column=self._table.get_column_index(column))
 
         commands = [
             Command(
-                "sort", arguments=[Argument("column_key", type=str, choices=df.columns)]
+                "sort",
+                arguments=[Argument("column_key", type=str, choices=self.df.columns)],
             ),
             Command(
-                "goto", arguments=[Argument("column_key", type=str, choices=df.columns)]
+                "goto",
+                arguments=[Argument("column_key", type=str, choices=self.df.columns)],
+                callback=goto,
             ),
             Command(
                 "filter",
-                arguments=[Argument("column_key", type=str, choices=df.columns)],
+                arguments=[Argument("column_key", type=str, choices=self.df.columns)],
             ),
             Command(
                 "filter2",
-                arguments=[Argument("column_key", type=str, choices=df.columns)],
+                arguments=[Argument("column_key", type=str, choices=self.df.columns)],
             ),
         ]
         self.parser = Parser(commands, target=self)
@@ -151,7 +177,28 @@ class CommandLine(Input):
         super().__init__(placeholder="command line")
         self.id = "command-line"
 
-    def get_new_state(self, text: str, state: TargetState) -> None:
+    def on_mount(self):
+        """Mount the CMP component."""
+        self._cmp = CMP(
+            self,
+            candidates=self.parser.candidates,
+            search_string=self._search_string,
+            completion_strategy=self._complete,
+            prevent_default_enter=False,
+            id="cmp",
+        )
+        self.screen.mount(self._cmp)
+
+    def action_execute(self) -> None:
+        """Function that will be called when the enter key is pressed."""
+        self.parser.execute(self.value)
+        self.value = ""
+        self.app.pop_screen()
+
+    def _complete(self, text: str, state: TargetState) -> None:
+        """The function that will be called when a completion is selected. It will replace
+        the last word with the selected completion.
+        """
         # delete the last word
         try:
             *_, hit = re.finditer(self._WORD_START, self.value[: self.cursor_position])
@@ -165,32 +212,22 @@ class CommandLine(Input):
         # add the new word
         self.insert_text_at_cursor(text)
 
-    def on_mount(self):
-        self._cmp = CMP(
-            self,
-            candidates=self.parser.candidates,
-            search_string=get_last_word,
-            completion_strategy=self.get_new_state,
-            id="cmp",
-        )
-        self.screen.mount(self._cmp)
-
-
-def get_last_word(state: TargetState) -> str:
-    try:
-        return state.text.split()[-1]
-    except IndexError:
-        return ""
+    def _search_string(self, state: TargetState) -> str:
+        """Function that extracts the search string from the current state."""
+        try:
+            return state.text.split()[-1]
+        except IndexError:
+            return ""
 
 
 class CmdLineScreen(ModalScreen):
     BINDINGS = [Binding("escape", "app.pop_screen")]
 
-    def __init__(self, collection: pd.DataFrame, *_args, **_kwargs):
-        self.collection = collection
+    def __init__(self, collection_table: "CollectionTable", *_args, **_kwargs):
+        self._table = collection_table
 
         super().__init__(*_args, **_kwargs)
 
     def compose(self) -> ComposeResult:
-        yield CommandLine(self.collection)
+        yield CommandLine(self._table)
         yield RichLog()

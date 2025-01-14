@@ -43,12 +43,9 @@ class CollectionTable(ModifiedDataTable):
         Binding("h", "cursor_left", "move cursor left", show=False),
         Binding("s", "sort_column", "sort column"),
         Binding("G", "cursor_to_end", "move cursor to end"),
-        Binding("g>g", "cursor_to_home", "move cursor to home"),
+        Binding("g>g", "cursor_to_home", "move cursor to home"),  # this will create a subgroup
         Binding(":", "enter_command_mode", "enter command mode", show=False),
     ]
-    # SUBGROUPS = {
-    #     "g": Binding("g", "cursor_to_home", "move cursor to home"),
-    # }
     COMPONENT_CLASSES = DataTable.COMPONENT_CLASSES | {
         "datatable--label",
     }
@@ -114,7 +111,7 @@ class CollectionTable(ModifiedDataTable):
 
     def _create_command_line_for_collection(self):
         assert self.df is not None
-        self.app.install_screen(CmdLineScreen(collection=self.df), name="command_line")
+        self.app.install_screen(CmdLineScreen(collection_table=self), name="command_line")
 
     def on_mount(self):
         """Load the data, create columns and rows."""
@@ -123,12 +120,12 @@ class CollectionTable(ModifiedDataTable):
         tab = [i.as_dict(standalone=False) for i in sims]
         self.df = pd.DataFrame.from_records(tab)
 
-        self.add_columns(*(str(i) for i in self.df.columns))
+        for col in self.df.columns:
+            self.add_column(str(col), key=str(col))
         for row in self.df.values:
             self.add_row(*row)
 
         self.fixed_columns = 1
-        self.app.install_screen(CmdLineScreen(collection=self.df), name="command_line")
 
     def action_sort_column(self):
         key = self._column_locations.get_key(self.cursor_column)
