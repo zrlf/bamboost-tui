@@ -1,12 +1,3 @@
-$foreground: ansi_white;
-$border: ansi_blue;
-$border-blurred: ansi_blue;
-$surface: ansi_black;
-$accent: ansi_yellow;
-$boost: ansi_green;
-$background: transparent;
-$primary: ansi_blue;
-
 $input-cursor-background: $surface;
 $input-cursor-foreground: $foreground;
 $block-cursor-background: $surface;
@@ -34,12 +25,76 @@ ToastRack {
     padding: 0;
 }
 
+Rule {
+    margin: 0;
+    color: $foreground;
+}
+
+HelpPanel {
+    #widget-help {
+        display: block;
+        height: auto;
+        max-height: 50%;
+        width: 1fr;
+        padding: 0;
+        margin: 0;
+        padding: 1 0;
+        margin-top: 1;
+        background: ansi_default;
+    }
+
+    border-left: vkey $surface 30%;
+}
+
+
+# ---------------------------------------------
+# COMMMAND MODE
+# ---------------------------------------------
+CmdLineScreen {
+    align: center middle;
+}
+RichLog {
+    height: 10;
+}
+CommandLine {
+    border: round $accent;
+    padding: 0;
+    background: transparent;
+    width: 50%;
+}
+#command-line-container {
+    background: transparent;
+    align: center middle;
+}
+AutoCompleteList {
+    background: black;
+    padding: 0 0;
+    margin: 0;
+    scrollbar-size-vertical: 1;
+    scrollbar-size-horizontal: 0;
+    &:focus {
+        border: none;
+        padding: 0;
+        margin: 0;
+    }
+    & > .option-list--option-highlighted, & > .option-list--option-hover-highlighted {
+        background: $surface;
+    }
+    
+}
+.autocomplete--highlight-match {
+    background: $accent;
+    color: ansi_black;
+}
+.autocomplete--selection-cursor {
+    background: ansi_blue;
+}
 
 # ---------------------------------------------
 # DATATABLE
 # ---------------------------------------------
 #table-container {
-    border: none $border;
+    border: none $boost;
 }
 
 DataTable {

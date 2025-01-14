@@ -7,11 +7,16 @@ from bamboost.index import DEFAULT_INDEX
 from rich.highlighter import ReprHighlighter
 from rich.text import Text
 from textual import events
-from textual.binding import Binding
+from textual.app import ComposeResult
+from textual.binding import Binding, BindingsMap
+from textual.containers import Container
 from textual.coordinate import Coordinate
 from textual.geometry import Region
-from textual.widgets import DataTable
+from textual.screen import ModalScreen
+from textual.widgets import DataTable, Footer, Input, Label
+from textual_autocomplete import AutoComplete, DropdownItem
 
+from bamboost_tui._commandline import CmdLineScreen
 from bamboost_tui._datatable import ModifiedDataTable, SortOrder
 
 REPR_HIGHLIGHTER = ReprHighlighter()
@@ -39,6 +44,7 @@ class CollectionTable(ModifiedDataTable):
         Binding("s", "sort_column", "sort column"),
         Binding("G", "cursor_to_end", "move cursor to end"),
         Binding("g>g", "cursor_to_home", "move cursor to home"),
+        Binding(":", "enter_command_mode", "enter command mode", show=False),
     ]
     # SUBGROUPS = {
     #     "g": Binding("g", "cursor_to_home", "move cursor to home"),
@@ -46,6 +52,11 @@ class CollectionTable(ModifiedDataTable):
     COMPONENT_CLASSES = DataTable.COMPONENT_CLASSES | {
         "datatable--label",
     }
+    HELP = """
+    # Collection table
+
+    Explore your simulations in this collection. Enter to view the respective HDF file.
+    """
 
     def __init__(self):
         super().__init__(
@@ -55,9 +66,15 @@ class CollectionTable(ModifiedDataTable):
             cursor_foreground_priority="renderable",
             cursor_background_priority="css",
         )
+
         self._SUBGROUPS: dict[str, dict[str, Binding]] = {}
-        # for key, subgroup in self.SUBGROUPS.items():
-        #     self._SUBGROUPS[key] = {subgroup.key: subgroup}
+        self._subgroup: dict[str, Binding] | None = None
+        self._create_subgroup_mapping()
+
+        self.df: pd.DataFrame | None = None
+        """The DataFrame that holds the data for the table."""
+
+    def _create_subgroup_mapping(self):
         for binding in Binding.make_bindings(self.BINDINGS):
             if len(binding.key.split(">")) > 1:
                 subgroup_key, key = binding.key.split(">")
@@ -74,8 +91,6 @@ class CollectionTable(ModifiedDataTable):
                         binding.system,
                     )
                 }
-
-        self._subgroup: dict[str, Binding] | None = None
 
     def _enter_subgroup(self, key: events.Key) -> None:
         self._subgroup = self._SUBGROUPS.get(key.key)
@@ -97,18 +112,23 @@ class CollectionTable(ModifiedDataTable):
         if event.key in self._SUBGROUPS:
             self._enter_subgroup(event)
 
+    def _create_command_line_for_collection(self):
+        assert self.df is not None
+        self.app.install_screen(CmdLineScreen(collection=self.df), name="command_line")
+
     def on_mount(self):
         """Load the data, create columns and rows."""
 
         sims = DEFAULT_INDEX.collection("0FD8B0E3BE").simulations
         tab = [i.as_dict(standalone=False) for i in sims]
-        df = pd.DataFrame.from_records(tab)
+        self.df = pd.DataFrame.from_records(tab)
 
-        self.add_columns(*(str(i) for i in df.columns))
-        for row in df.values:
+        self.add_columns(*(str(i) for i in self.df.columns))
+        for row in self.df.values:
             self.add_row(*row)
 
         self.fixed_columns = 1
+        self.app.install_screen(CmdLineScreen(collection=self.df), name="command_line")
 
     def action_sort_column(self):
         key = self._column_locations.get_key(self.cursor_column)
@@ -134,6 +154,13 @@ class CollectionTable(ModifiedDataTable):
 
     def action_cursor_to_home(self):
         self.cursor_coordinate = Coordinate(0, self.cursor_coordinate.column)
+
+    def action_enter_command_mode(self):
+        if "command_line" in self.app._installed_screens:
+            self.app.push_screen("command_line")
+        else:
+            self._create_command_line_for_collection()
+            self.app.push_screen("command_line")
 
     def watch_cursor_coordinate(
         self, old_coordinate: Coordinate, new_coordinate: Coordinate

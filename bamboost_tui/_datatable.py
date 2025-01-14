@@ -322,7 +322,8 @@ class ModifiedDataTable(DataTable):
         row_label, row_cells = self._get_row_renderables(row_index)
 
         if is_row_label_cell:
-            cell = row_label if row_label is not None else ""
+            # cell = row_label if row_label is not None else ""
+            cell = row_label or " " if row_index == self.cursor_row else " "
         else:
             cell = row_cells[column_index]
 
