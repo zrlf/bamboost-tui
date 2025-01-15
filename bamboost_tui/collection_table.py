@@ -43,7 +43,9 @@ class CollectionTable(ModifiedDataTable):
         Binding("h", "cursor_left", "move cursor left", show=False),
         Binding("s", "sort_column", "sort column"),
         Binding("G", "cursor_to_end", "move cursor to end"),
-        Binding("g>g", "cursor_to_home", "move cursor to home"),  # this will create a subgroup
+        Binding(
+            "g>g", "cursor_to_home", "move cursor to home"
+        ),  # this will create a subgroup
         Binding(":", "enter_command_mode", "enter command mode", show=False),
     ]
     COMPONENT_CLASSES = DataTable.COMPONENT_CLASSES | {
@@ -70,6 +72,20 @@ class CollectionTable(ModifiedDataTable):
 
         self.df: pd.DataFrame | None = None
         """The DataFrame that holds the data for the table."""
+
+    def on_mount(self):
+        """Load the data, create columns and rows."""
+
+        sims = DEFAULT_INDEX.collection("0FD8B0E3BE").simulations
+        tab = [i.as_dict(standalone=False) for i in sims]
+        self.df = pd.DataFrame.from_records(tab)
+
+        for col in self.df.columns:
+            self.add_column(str(col), key=str(col))
+        for row in self.df.values:
+            self.add_row(*row)
+
+        self.fixed_columns = 1
 
     def _create_subgroup_mapping(self):
         for binding in Binding.make_bindings(self.BINDINGS):
@@ -111,22 +127,35 @@ class CollectionTable(ModifiedDataTable):
 
     def _create_command_line_for_collection(self):
         assert self.df is not None
-        self.app.install_screen(CmdLineScreen(collection_table=self), name="command_line")
+        self.app.install_screen(
+            CmdLineScreen(collection_table=self), name="command_line"
+        )
 
-    def on_mount(self):
-        """Load the data, create columns and rows."""
+    def watch_cursor_coordinate(
+        self, old_coordinate: Coordinate, new_coordinate: Coordinate
+    ) -> None:
+        old_region = self._get_cell_region(old_coordinate)
+        new_region = self._get_cell_region(new_coordinate)
 
-        sims = DEFAULT_INDEX.collection("0FD8B0E3BE").simulations
-        tab = [i.as_dict(standalone=False) for i in sims]
-        self.df = pd.DataFrame.from_records(tab)
+        if new_coordinate.column != old_coordinate.column:
+            # Refresh header cell
+            old_region_h = Region(old_region.x, 0, old_region.width, self.header_height)
+            new_region_h = Region(new_region.x, 0, new_region.width, self.header_height)
+            self._refresh_region(old_region_h)
+            self._refresh_region(new_region_h)
+            self._header_cell_render_cache.clear()
+        else:
+            # Refresh entire row highlighting
+            old = Region(old_region.x, old_region.y, self.size.width, old_region.height)
+            self._refresh_region(old)
+            new = Region(new_region.x, new_region.y, self.size.width, new_region.height)
+            self._refresh_region(new)
 
-        for col in self.df.columns:
-            self.add_column(str(col), key=str(col))
-        for row in self.df.values:
-            self.add_row(*row)
+        super().watch_cursor_coordinate(old_coordinate, new_coordinate)
 
-        self.fixed_columns = 1
-
+    # -------------------------------------------------------------------------
+    # Actions
+    # -------------------------------------------------------------------------
     def action_sort_column(self):
         key = self._column_locations.get_key(self.cursor_column)
         if key is None:
@@ -158,25 +187,3 @@ class CollectionTable(ModifiedDataTable):
         else:
             self._create_command_line_for_collection()
             self.app.push_screen("command_line")
-
-    def watch_cursor_coordinate(
-        self, old_coordinate: Coordinate, new_coordinate: Coordinate
-    ) -> None:
-        old_region = self._get_cell_region(old_coordinate)
-        new_region = self._get_cell_region(new_coordinate)
-
-        if new_coordinate.column != old_coordinate.column:
-            # Refresh header cell
-            old_region_h = Region(old_region.x, 0, old_region.width, self.header_height)
-            new_region_h = Region(new_region.x, 0, new_region.width, self.header_height)
-            self._refresh_region(old_region_h)
-            self._refresh_region(new_region_h)
-            self._header_cell_render_cache.clear()
-        else:
-            # Refresh entire row highlighting
-            old = Region(old_region.x, old_region.y, self.size.width, old_region.height)
-            self._refresh_region(old)
-            new = Region(new_region.x, new_region.y, self.size.width, new_region.height)
-            self._refresh_region(new)
-
-        super().watch_cursor_coordinate(old_coordinate, new_coordinate)

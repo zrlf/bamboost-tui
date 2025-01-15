@@ -9,6 +9,7 @@ from textual.reactive import reactive
 from textual.theme import BUILTIN_THEMES, Theme
 from textual.widgets import Footer, HelpPanel, RichLog, Rule, Static
 
+from bamboost_tui._commandline import CommandLine
 from bamboost_tui.collection_table import CollectionTable
 
 ansi_theme = Theme(
@@ -61,6 +62,7 @@ class Bamboost(App):
         Binding("ctrl+q", "pop_screen", "quit screen"),
         Binding("?", "toggle_help_panel", "Show help"),
     ]
+    COMMAND_PALETTE_BINDING = "ctrl+o"
 
     def compose(self) -> ComposeResult:
         yield Container(

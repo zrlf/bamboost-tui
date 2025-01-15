@@ -4,59 +4,22 @@ import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Callable, Iterable, List, Type
 
-import pandas as pd
-from rich.text import Text, TextType
+from rich.text import Text
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.geometry import Offset
+from textual.containers import Horizontal
 from textual.screen import ModalScreen
-from textual.widgets import Input, RichLog, TextArea
-from textual_autocomplete import (
+from textual.widgets import Input, Label, RichLog
+from typing_extensions import TypeAlias
+
+from bamboost_tui._cmp import (
     AutoComplete,
     DropdownItem,
-    MatcherFactoryType,
     TargetState,
 )
-from typing_extensions import TypeAlias
-from textual.widgets.data_table import ColumnKey
 
 if TYPE_CHECKING:
     from bamboost_tui.collection_table import CollectionTable
-
-
-class CMP(AutoComplete):
-    absolute_offset = Offset(0, 0)
-
-    def __init__(
-        self,
-        target: Input | TextArea | str,
-        candidates: list[DropdownItem] | Callable[[TargetState], list[DropdownItem]],
-        matcher_factory: MatcherFactoryType | None = None,
-        completion_strategy: (
-            Callable[[str, TargetState], TargetState | None] | None
-        ) = None,
-        search_string: Callable[[TargetState], str] | None = None,
-        prevent_default_enter: bool = True,
-        prevent_default_tab: bool = True,
-        name: str | None = None,
-        id: str | None = None,
-        classes: str | None = None,
-        disabled: bool = False,
-    ) -> None:
-        super().__init__(
-            target,
-            candidates,
-            matcher_factory,
-            completion_strategy,
-            search_string,
-            prevent_default_enter,
-            prevent_default_tab,
-            name,
-            id,
-            classes,
-            disabled,
-        )
-        self.absolute_offset = Offset(0, 0)
 
 
 @dataclass
@@ -93,7 +56,7 @@ class Parser:
     def candidates(self, state: TargetState) -> list[DropdownItem]:
         text = state.text
         main_command_list = [
-            DropdownItem(cmd, Text("󰊕", "blue")) for cmd in self._commands.keys()
+            DropdownItem(cmd, "function", "func") for cmd in self._commands.keys()
         ]
         if not text:
             return main_command_list
@@ -122,7 +85,8 @@ class Parser:
         try:
             current_arg = command.arguments[arg_count]
             return [
-                DropdownItem(choice, Text("", "red")) for choice in current_arg.choices
+                DropdownItem(choice, "object", "column")
+                for choice in current_arg.choices
             ]
         except IndexError:
             return None
@@ -139,18 +103,19 @@ class Parser:
 
 
 class CommandLine(Input):
-    _cmp: CMP
+    _cmp: AutoComplete
     """The autocomplete component of this input widget."""
     BINDINGS = [
         Binding("enter", "execute"),
     ]
 
     def __init__(self, collection_table: "CollectionTable"):
+        super().__init__(placeholder="command line", id="command-line-input")
+
         self._table = collection_table
         self.df = collection_table.df
-        
+
         def goto(column: str):
-            self.screen.query_one(RichLog).write(column)
             self._table.move_cursor(column=self._table.get_column_index(column))
 
         commands = [
@@ -174,12 +139,9 @@ class CommandLine(Input):
         ]
         self.parser = Parser(commands, target=self)
 
-        super().__init__(placeholder="command line")
-        self.id = "command-line"
-
     def on_mount(self):
         """Mount the CMP component."""
-        self._cmp = CMP(
+        self._cmp = AutoComplete(
             self,
             candidates=self.parser.candidates,
             search_string=self._search_string,
@@ -229,5 +191,5 @@ class CmdLineScreen(ModalScreen):
         super().__init__(*_args, **_kwargs)
 
     def compose(self) -> ComposeResult:
-        yield CommandLine(self._table)
-        yield RichLog()
+        yield Horizontal(Label(':'), CommandLine(self._table), id="command-line")
+        # yield RichLog()

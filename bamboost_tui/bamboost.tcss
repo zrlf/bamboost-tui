@@ -48,23 +48,20 @@ HelpPanel {
 
 
 # ---------------------------------------------
-# COMMMAND MODE
+# COMMMAND LINE
 # ---------------------------------------------
 CmdLineScreen {
-    align: center middle;
+    align: left bottom;
 }
-RichLog {
-    height: 10;
+#command-line {
+    height: 1;
+    background: $surface;
 }
 CommandLine {
-    border: round $accent;
+    border: none;
     padding: 0;
     background: transparent;
-    width: 50%;
-}
-#command-line-container {
-    background: transparent;
-    align: center middle;
+    height: 1;
 }
 AutoCompleteList {
     background: black;
@@ -80,14 +77,13 @@ AutoCompleteList {
     & > .option-list--option-highlighted, & > .option-list--option-hover-highlighted {
         background: $surface;
     }
-    
-}
-.autocomplete--highlight-match {
-    background: $accent;
-    color: ansi_black;
-}
-.autocomplete--selection-cursor {
-    background: ansi_blue;
+    .autocomplete--highlight-match {
+        background: $accent;
+        color: ansi_black;
+    }
+    .autocomplete--selection-cursor {
+        background: ansi_blue;
+    }
 }
 
 # ---------------------------------------------
