@@ -1,16 +1,5 @@
-$input-cursor-background: $surface;
-$input-cursor-foreground: $foreground;
-$block-cursor-background: $surface;
-$block-cursor-foreground: $foreground;
-$block-cursor-blurred-background: $surface;
-$block-cursor-blurred-foreground: $foreground;
-$block-hover-background: $surface;
 
 $background-cp: transparent;
-
-* {
-}
-
 
 # ---------------------------------------------
 # TOAST
@@ -41,14 +30,13 @@ HelpPanel {
 # ---------------------------------------------
 # COMMMAND LINE
 # ---------------------------------------------
-CmdLineScreen {
+CommandLine {
     align: left bottom;
 }
 #command-line {
     height: 1;
-    background: $surface;
 }
-CommandLine {
+CommandLineInput {
     border: none;
     padding: 0;
     background: transparent;
@@ -81,7 +69,7 @@ AutoCompleteList {
 # DATATABLE
 # ---------------------------------------------
 #table-container {
-    border: none $boost;
+    border: round $border;
 }
 
 DataTable {
@@ -91,6 +79,7 @@ DataTable {
 }
 .datatable--cursor {
     text-style: bold;
+    color: $foreground;
     background: $surface;
 }
 .datatable--header {
@@ -102,6 +91,7 @@ DataTable {
 }
 .datatable--fixed-cursor {
     background: $surface;
+    color: $primary;
 }
 .datatable--header-cursor {
     background: $surface;

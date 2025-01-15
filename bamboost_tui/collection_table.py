@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING
 
 import pandas as pd
 from bamboost.index import DEFAULT_INDEX
@@ -9,17 +8,26 @@ from rich.highlighter import ReprHighlighter
 from rich.text import Text
 from textual import events
 from textual.app import ComposeResult
-from textual.binding import Binding, BindingsMap
+from textual.binding import Binding
 from textual.containers import Container
 from textual.coordinate import Coordinate
 from textual.geometry import Region
-from textual.screen import ModalScreen
-from textual.widgets import DataTable, Footer, Input, Label
+from textual.screen import Screen
+from textual.widgets import DataTable, Footer
 from textual.widgets.data_table import ColumnKey
-from textual_autocomplete import AutoComplete, DropdownItem
 
-from bamboost_tui._commandline import CmdLineScreen
 from bamboost_tui._datatable import ModifiedDataTable, SortOrder
+from bamboost_tui.commandline import CommandLine
+
+
+class ScreenCollection(Screen):
+    def compose(self) -> ComposeResult:
+        yield Container(
+            CollectionTable(),
+            id="table-container",
+        )
+        yield Footer()
+
 
 REPR_HIGHLIGHTER = ReprHighlighter()
 
@@ -45,9 +53,7 @@ class CollectionTable(ModifiedDataTable):
         Binding("h", "cursor_left", "move cursor left", show=False),
         Binding("s", "sort_column", "sort column"),
         Binding("G", "cursor_to_end", "move cursor to end"),
-        Binding(
-            "g>g", "cursor_to_home", "move cursor to home"
-        ),  # this will create a subgroup
+        Binding("g>g", "cursor_to_home", "move cursor to home"),
         Binding(":", "enter_command_mode", "enter command mode", show=False),
     ]
     COMPONENT_CLASSES = DataTable.COMPONENT_CLASSES | {
@@ -69,7 +75,9 @@ class CollectionTable(ModifiedDataTable):
         )
 
         self._SUBGROUPS: dict[str, dict[str, Binding]] = {}
+        """Mapping of subgroup keys to a dictionary of bindings."""
         self._subgroup: dict[str, Binding] | None = None
+        """The current subgroup of bindings."""
         self._create_subgroup_mapping()
 
         self.df: pd.DataFrame | None = None
@@ -115,23 +123,25 @@ class CollectionTable(ModifiedDataTable):
         key.prevent_default()
         key.stop()
         self._subgroup = None
+        # call the action for the binding
         getattr(self, "action_" + action)()
 
     def on_key(self, event: events.Key) -> None:
+        # if we're in a subgroup, check group specific binding
         if self._subgroup is not None:
             if event.key in self._subgroup:
                 return self._resolve_subgroup(self._subgroup, event)
             else:
                 self._subgroup = None
+                return
 
+        # if the key leads to a subgroup, enter it
         if event.key in self._SUBGROUPS:
             self._enter_subgroup(event)
 
     def _create_command_line_for_collection(self):
         assert self.df is not None
-        self.app.install_screen(
-            CmdLineScreen(collection_table=self), name="command_line"
-        )
+        self.app.install_screen(CommandLine(collection_table=self), name="command_line")
 
     def watch_cursor_coordinate(
         self, old_coordinate: Coordinate, new_coordinate: Coordinate
