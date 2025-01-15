@@ -26,6 +26,10 @@ class ScreenCollection(Screen):
             CollectionTable(),
             id="table-container",
         )
+        yield Container(
+            CollectionTable(),
+            id="table-container-2",
+        )
         yield Footer()
 
 

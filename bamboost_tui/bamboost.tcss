@@ -1,10 +1,42 @@
-
 $background-cp: transparent;
+
+ScreenWelcome {
+    align: center middle;
+    layout: grid;
+    grid-size: 2;
+    grid-columns: 2fr 3fr;
+    grid-gutter: 1;
+
+    .logo {
+        color: $surface;
+        align: center middle;
+        height: 100%;
+    }
+
+    .information {
+        layout: grid;
+        grid-size: 1;
+        height: 100%;
+
+        KeybindsIntro {
+            color: $foreground;
+            padding: 2;
+            height: 100%;
+        }
+        MultiColumnOptionList {
+            align: center bottom;
+
+            MultiColumnOption {
+                align: left bottom;
+                width: auto;
+            }
+        }
+    }
+}
 
 # ---------------------------------------------
 # TOAST
 # ---------------------------------------------
-
 Rule {
     margin: 0;
     color: $foreground;
