@@ -1,6 +1,29 @@
-# Copied from textual-autocomplete
+# ------------------------------------------------------------------------------
+# Mostly copied from darrenburns/textual-autocomplete
 #
-# The original code is licensed under the MIT License.
+# MIT License
+#
+# Copyright (c) 2023 Darren Burns
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
+# ------------------------------------------------------------------------------
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -24,13 +47,13 @@ from rich.padding import Padding
 from rich.style import Style
 from rich.text import Text, TextType
 from textual import events, on
-from textual.app import ComposeResult, RenderResult
+from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.cache import LRUCache
 from textual.css.query import NoMatches
 from textual.geometry import Offset, Region, Spacing
 from textual.widget import Widget
-from textual.widgets import Input, OptionList, TextArea
+from textual.widgets import Input, Label, OptionList, TextArea
 from textual.widgets.option_list import Option
 from textual.widgets.text_area import Selection
 

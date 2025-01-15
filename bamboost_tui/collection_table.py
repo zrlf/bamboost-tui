@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 import pandas as pd
 from bamboost.index import DEFAULT_INDEX
@@ -14,6 +15,7 @@ from textual.coordinate import Coordinate
 from textual.geometry import Region
 from textual.screen import ModalScreen
 from textual.widgets import DataTable, Footer, Input, Label
+from textual.widgets.data_table import ColumnKey
 from textual_autocomplete import AutoComplete, DropdownItem
 
 from bamboost_tui._commandline import CmdLineScreen
@@ -155,15 +157,24 @@ class CollectionTable(ModifiedDataTable):
     # -------------------------------------------------------------------------
     # Actions
     # -------------------------------------------------------------------------
-    def action_sort_column(self):
-        key = self._column_locations.get_key(self.cursor_column)
-        if key is None:
-            return
-
-        if self._sort_column == key:
-            sort_order = SortOrder(not self._sort_column_order.value)
+    def action_sort_column(
+        self, column_key: ColumnKey | str | None = None, reverse: bool | None = None
+    ):
+        if not column_key:
+            key = self._column_locations.get_key(self.cursor_column)
+            if key is None:
+                return
         else:
-            sort_order = SortOrder.DESC
+            key = ColumnKey(column_key) if isinstance(column_key, str) else column_key
+
+        if reverse is None:
+            sort_order = (
+                SortOrder(not self._sort_column_order.value)
+                if self._sort_column == key
+                else SortOrder.DESC
+            )
+        else:
+            sort_order = SortOrder(not reverse)
 
         self.sort(key, reverse=sort_order.value)
         self._sort_column = key
