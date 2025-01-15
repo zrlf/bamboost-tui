@@ -191,5 +191,5 @@ class CmdLineScreen(ModalScreen):
         super().__init__(*_args, **_kwargs)
 
     def compose(self) -> ComposeResult:
-        yield Horizontal(Label(':'), CommandLine(self._table), id="command-line")
+        yield Horizontal(Label(":"), CommandLine(self._table), id="command-line")
         # yield RichLog()

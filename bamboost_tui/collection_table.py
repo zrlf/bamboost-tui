@@ -141,8 +141,7 @@ class CollectionTable(ModifiedDataTable):
             # Refresh header cell
             old_region_h = Region(old_region.x, 0, old_region.width, self.header_height)
             new_region_h = Region(new_region.x, 0, new_region.width, self.header_height)
-            self._refresh_region(old_region_h)
-            self._refresh_region(new_region_h)
+            self.refresh(old_region_h, new_region_h)
             self._header_cell_render_cache.clear()
         else:
             # Refresh entire row highlighting
