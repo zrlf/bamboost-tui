@@ -38,6 +38,7 @@ class CommandLineInput(Input):
     """The autocomplete component of this input widget."""
     BINDINGS = [
         Binding("enter", "execute"),
+        Binding("alt+backspace", "delete_left_word"),
     ]
 
     def __init__(self, collection_table: "CollectionTable"):

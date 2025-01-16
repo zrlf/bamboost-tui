@@ -1,24 +1,30 @@
 from __future__ import annotations
 
-from bamboost import config
+import asyncio
+from contextlib import contextmanager
+from typing import Generator
+
+import rich
+from rich.columns import Columns
 from rich.console import RenderableType
+from rich.spinner import Spinner
 from rich.style import Style
-from rich.table import Table
+from rich.table import Row, Table
 from rich.text import Text
-from textual.app import App, ComposeResult, RenderResult
+from textual import on
+from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.containers import Container, Vertical
+from textual.containers import Container
 from textual.css.query import NoMatches
-from textual.events import Event
-from textual.geometry import Size
+from textual.geometry import Offset
+from textual.message import Message
 from textual.reactive import reactive
 from textual.screen import Screen
 from textual.theme import BUILTIN_THEMES, Theme
 from textual.widget import Widget
-from textual.widgets import Footer, HelpPanel, Label, OptionList, Static
-from textual.widgets.option_list import Option
+from textual.widgets import Footer, HelpPanel, Label, Static
 
-from bamboost_tui.collection_table import CollectionTable, ScreenCollection
+from bamboost_tui.collection_table import ScreenCollection
 
 ansi_theme = Theme(
     name="ansi",
@@ -69,13 +75,8 @@ ASCII_LOGO = r"""
 """
 
 
-from rich.columns import Columns
-from rich.panel import Panel
-from rich.text import Text
-
-
 class KeybindsIntro(Static):
-    def render(self) -> RenderResult:
+    def __init__(self) -> None:
         key_bindings = [
             "q / Quit current screen",
             "? / Toggle help panel",
@@ -83,71 +84,117 @@ class KeybindsIntro(Static):
             "ctrl+c / Quit application",
             "ctrl+z / Suspend process",
         ]
-
         content = [
             Text("Key Bindings:", style="italic dim"),
             Columns(
                 key_bindings, align="center", expand=False, equal=True, padding=(0, 3)
             ),
         ]
+        super().__init__(Columns(content, align="center", expand=True))
 
-        return Columns(content, align="center", expand=True)
 
-
-class MultiColumnOption(Static):
+class ListOption(Static):
     is_highlighted = reactive(False)
+    """A reactive boolean to determine if the option is highlighted."""
+    option_key: str
+    """The first column of the option is used as it's key."""
+    columns: tuple[RenderableType, ...]
+    description: reactive[RenderableType] = reactive("")
 
     def __init__(
         self,
-        option_list: MultiColumnOptionList,
-        columns: tuple[str, ...],
-        styles: tuple[str, ...] = (),
+        main: str,
+        description: Text | str,
+        option_list: MenuList,
         id: str | None = None,
     ) -> None:
         super().__init__(id=id)
         self.option_list = option_list
-        if styles:
-            self.columns = tuple(
-                Text(column, style=styles[i]) for i, column in enumerate(columns)
-            )
-        else:
-            self.columns = tuple(Text(column) for column in columns)
+        self.option_key = main
 
-    def render(self) -> RenderableType:
-        chevron = Text("❯", style="blue") if self.is_highlighted else " "
+        styles = option_list._styles
+        self.main = Text(main, style=styles[0])
+        self.description = (
+            Text(description, style=styles[1])
+            if isinstance(description, str)
+            else description
+        )
+
+    def _update_self(self) -> None:
         tab = Table.grid(padding=(0, 2), pad_edge=True)
-        tab.add_column("chevron", width=1)  # chevron
-        for i, column in enumerate(self.columns):
-            tab.add_column(column, width=self.option_list.column_widths[i])
+        tab.add_column("chevron", width=1)
+        tab.add_column(width=self.option_list.column_widths[0])
+        tab.add_column(width=self.option_list.column_widths[1])
         tab.add_row(
-            chevron,
-            *self.columns,
+            Text("❯", style="blue") if self.is_highlighted else " ",
+            self.main,
+            self.description,
             style=Style(bgcolor="black", bold=True) if self.is_highlighted else None,
         )
-        return tab
+        self.update(tab)
+
+    def watch_is_highlighted(self) -> None:
+        """Watch the is_highlighted reactive and update the renderable."""
+        self._update_self()
+
+    def watch_description(self) -> None:
+        """Watch the description reactive and update the renderable."""
+        self._update_self()
+
+    @contextmanager
+    def process_indicator(
+        self,
+        attr: str,
+        renderable: RenderableType,
+        interval: float = 0.5,
+        success: str = "✓",
+        timeout: float = 2,
+    ) -> Generator[None, None, None]:
+        """Context manager to show a process indicator in a widget.
+
+        Args:
+            attr (str): The attribute to update with the renderable.
+            renderable (RenderableType): The renderable to show.
+            interval (float, optional): The interval to update the renderable. Defaults to 0.5.
+            success (str, optional): The success indicator. Defaults to "✓".
+            timeout (float, optional): The timeout to stop the process indicator. Defaults to 2.
+        """
+        original = getattr(self, attr)
+        setattr(self, attr, renderable)
+        timer = self.set_interval(interval, self.refresh)
+        try:
+            yield
+        finally:
+            timer.stop()
+            del timer
+            setattr(self, attr, Text.from_markup(success))
+            self.set_timer(timeout, lambda: setattr(self, attr, original))
 
 
-class MultiColumnOptionList(Widget, can_focus=True):
+class MenuList(Widget, can_focus=True):
     """A custom option list widget with three columns."""
 
     BINDINGS = [
         Binding("ctrl+n,j,down", "cursor_down", "Move cursor down"),
         Binding("ctrl+p,k,up", "cursor_up", "Move cursor up"),
+        Binding("enter", "select", "Select the highlighted option"),
     ]
 
     highlighted_index = reactive(0)
 
     def __init__(self, *options: tuple[str, ...], styles: tuple[str, ...] = ()) -> None:
         super().__init__()
-        self.options = [
-            MultiColumnOption(self, option, styles=styles) for option in options
-        ]
 
+        # compute necessary column widths
         col_lengths = [len(column) for column in options[0]]
         for option in options[1:]:
             for i, column in enumerate(option):
                 col_lengths[i] = max(col_lengths[i], len(column))
         self.column_widths = col_lengths
+
+        self._styles = styles
+        self._options = options
+        self.options = [ListOption(*option, option_list=self) for option in options]
 
     def compose(self) -> ComposeResult:
         """Compose the options as children widgets."""
@@ -173,33 +220,81 @@ class MultiColumnOptionList(Widget, can_focus=True):
         self.highlighted_index = max(self.highlighted_index - 1, 0)
         self.update_highlight()
 
-    class OptionSelected(Event):
-        """An event that is emitted when an option is selected."""
-        # TODO
-        
+    class OptionSelected(Message):
+        """Option selected message."""
+
+        def __init__(self, option: ListOption) -> None:
+            self.option = option
+            super().__init__()
 
     def action_select(self) -> None:
         """Select the highlighted option."""
-        # self.options[self.highlighted_index].action_select()
-        # TODO
+        self.post_message(self.OptionSelected(self.options[self.highlighted_index]))
 
 
 class ScreenWelcome(Screen):
     def compose(self) -> ComposeResult:
         yield Container(Label(ASCII_LOGO), classes="logo")
-        yield Container(
-            MultiColumnOptionList(
-                ("Index", "Pick a collection from all known collections"),
-                ("Remote", "Show known remote collections"),
-                ("Scan paths", "Scan paths for new collections"),
-                ("Open config", "Open the config file"),
-                ("Exit", "Quit the app"),
-                styles=("blue", "dim"),
-            ),
-            KeybindsIntro(),
-            classes="information",
+        yield MenuList(
+            ("Index", "Pick a collection from all known collections"),
+            ("Remote", "Show known remote collections"),
+            ("Scan paths", "Scan paths for new collections"),
+            ("Open config", "Open the config file"),
+            ("Exit", "Quit the app"),
+            styles=("cyan", "dim"),
         )
+        yield KeybindsIntro()
         yield Footer()
+
+    @on(MenuList.OptionSelected)
+    async def on_selection(self, message: MenuList.OptionSelected) -> None:
+        option = message.option
+        desc = option.description
+
+        if option.option_key == "Index":
+            self.app.push_screen(ScreenCollection())
+        elif option.option_key == "Remote":
+            pass
+        elif option.option_key == "Scan paths":
+
+            async def scan_paths(option: ListOption):
+                # replace the description with the spinner and set interval refresh
+                with option.process_indicator(
+                    "description",
+                    Spinner("dots", text="Scanning paths..."),
+                    1 / 20,
+                    "[green][not bold]:heavy_check_mark:[/not bold] Index scanned.",
+                    timeout=3,
+                ):
+                    from bamboost.index import DEFAULT_INDEX
+
+                    await asyncio.sleep(1)
+                    DEFAULT_INDEX.scan_for_collections()
+
+            self.run_worker(scan_paths(option))
+        elif option.option_key == "Open config":
+            import os
+
+            from bamboost._config import CONFIG_FILE
+
+            with self.app.suspend():
+                os.system(f"${{EDITOR:-vim}} {CONFIG_FILE}")
+
+        elif option.option_key == "Exit":
+            self.app.exit()
+
+
+class IntervalUpdater(Static):
+    _renderable_object: RenderableType
+
+    def __init__(
+        self, renderable: RenderableType, interval: float = 1.0, id: str | None = None
+    ) -> None:
+        super().__init__(renderable, id=id)
+        self.interval = interval
+
+    def on_mount(self) -> None:
+        self.interval_update = self.set_interval(self.interval, self.refresh)
 
 
 class Bamboost(App):

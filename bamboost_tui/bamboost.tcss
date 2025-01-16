@@ -5,32 +5,26 @@ ScreenWelcome {
     layout: grid;
     grid-size: 2;
     grid-columns: 2fr 3fr;
-    grid-gutter: 1;
+    grid-gutter: 0;
 
     .logo {
         color: $surface;
         align: center middle;
-        height: 100%;
     }
 
-    .information {
-        layout: grid;
-        grid-size: 1;
-        height: 100%;
+    MenuList {
+        align: center middle;
 
-        KeybindsIntro {
-            color: $foreground;
-            padding: 2;
-            height: 100%;
+        MultiColumnOption {
+            align: left top;
+            width: auto;
         }
-        MultiColumnOptionList {
-            align: center bottom;
-
-            MultiColumnOption {
-                align: left bottom;
-                width: auto;
-            }
-        }
+    }
+    KeybindsIntro {
+        color: $foreground-muted;
+        content-align: center top;
+        padding: 2;
+        column-span: 2;
     }
 }
 
