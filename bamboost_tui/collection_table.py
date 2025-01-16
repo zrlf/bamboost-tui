@@ -11,7 +11,7 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Container
 from textual.coordinate import Coordinate
-from textual.geometry import Region
+from textual.geometry import Offset, Region
 from textual.screen import Screen
 from textual.widgets import DataTable, Footer
 from textual.widgets.data_table import ColumnKey
@@ -25,10 +25,6 @@ class ScreenCollection(Screen):
         yield Container(
             CollectionTable(),
             id="table-container",
-        )
-        yield Container(
-            CollectionTable(),
-            id="table-container-2",
         )
         yield Footer()
 
@@ -157,7 +153,10 @@ class CollectionTable(ModifiedDataTable):
             # Refresh header cell
             old_region_h = Region(old_region.x, 0, old_region.width, self.header_height)
             new_region_h = Region(new_region.x, 0, new_region.width, self.header_height)
-            self.refresh(old_region_h, new_region_h)
+            self.refresh(
+                old_region_h.translate(-Offset(self.scroll_offset.x, 0)),
+                new_region_h.translate(-Offset(self.scroll_offset.x, 0)),
+            )
             self._header_cell_render_cache.clear()
         else:
             # Refresh entire row highlighting
