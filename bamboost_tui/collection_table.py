@@ -1,32 +1,58 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 import pandas as pd
+import rich
 from bamboost.index import DEFAULT_INDEX
+from bamboost.index.sqlmodel import CollectionORM
+from rich.columns import Columns
+from rich.console import RenderableType
 from rich.highlighter import ReprHighlighter
+from rich.panel import Panel
 from rich.text import Text
 from textual import events
 from textual.app import ComposeResult
 from textual.binding import Binding
+from textual.command import CommandPalette, Hit, Hits, Matcher, Provider
 from textual.containers import Container
+from textual.content import Content
 from textual.coordinate import Coordinate
 from textual.geometry import Offset, Region
-from textual.screen import Screen
-from textual.widgets import DataTable, Footer
+from textual.screen import ModalScreen, Screen
+from textual.types import IgnoreReturnCallbackType
+from textual.visual import Style, VisualType
+from textual.widgets import DataTable, Footer, Label, Placeholder, Static
 from textual.widgets.data_table import ColumnKey
 
 from bamboost_tui._datatable import ModifiedDataTable, SortOrder
+from bamboost_tui.collection_picker import CollectionPicker
 from bamboost_tui.commandline import CommandLine
+
+if TYPE_CHECKING:
+    from rich.style import Style as RichStyle
 
 
 class ScreenCollection(Screen):
+    BINDINGS = [Binding("ctrl+m", "toggle_picker", "toggle the collection picker")]
+    COMPONENT_CLASSES = Screen.COMPONENT_CLASSES | {
+        "collection-list--uid",
+    }
+
+    def __init__(self, uid: str) -> None:
+        self.uid = uid
+        super().__init__()
+
     def compose(self) -> ComposeResult:
         yield Container(
-            CollectionTable(),
+            CollectionTable(self.uid),
             id="table-container",
         )
         yield Footer()
+
+    def action_toggle_picker(self):
+        self.app.push_screen(CollectionPicker())
 
 
 REPR_HIGHLIGHTER = ReprHighlighter()
@@ -65,7 +91,7 @@ class CollectionTable(ModifiedDataTable):
     Explore your simulations in this collection. Enter to view the respective HDF file.
     """
 
-    def __init__(self):
+    def __init__(self, uid: str):
         super().__init__(
             header_height=2,
             cursor_type="cell",
@@ -73,6 +99,9 @@ class CollectionTable(ModifiedDataTable):
             cursor_foreground_priority="renderable",
             cursor_background_priority="css",
         )
+
+        self.uid: str = uid
+        """The collection uid to display."""
 
         self._SUBGROUPS: dict[str, dict[str, Binding]] = {}
         """Mapping of subgroup keys to a dictionary of bindings."""
@@ -86,7 +115,7 @@ class CollectionTable(ModifiedDataTable):
     def on_mount(self):
         """Load the data, create columns and rows."""
 
-        sims = DEFAULT_INDEX.collection("0FD8B0E3BE").simulations
+        sims = DEFAULT_INDEX.collection(self.uid).simulations
         tab = [i.as_dict(standalone=False) for i in sims]
         self.df = pd.DataFrame.from_records(tab)
 

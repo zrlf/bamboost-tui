@@ -24,6 +24,7 @@ from textual.theme import BUILTIN_THEMES, Theme
 from textual.widget import Widget
 from textual.widgets import Footer, HelpPanel, Label, Static
 
+from bamboost_tui.collection_picker import CollectionHit, CollectionPicker
 from bamboost_tui.collection_table import ScreenCollection
 
 ansi_theme = Theme(
@@ -265,7 +266,7 @@ class ScreenWelcome(Screen):
         desc = option.description
 
         if option.option_key == "Index":
-            self.app.push_screen(ScreenCollection())
+            self.app.push_screen(CollectionPicker())
         elif option.option_key == "Remote":
             pass
         elif option.option_key == "Scan paths":
@@ -339,6 +340,10 @@ class Bamboost(App):
             self.query_one(HelpPanel).remove()
         except NoMatches:
             self.action_show_help_panel()
+
+    @on(CollectionHit.CollectionSelected)
+    def _open_collection(self, message: CollectionHit.CollectionSelected) -> None:
+        self.app.push_screen(ScreenCollection(uid=message.uid))
 
 
 if __name__ == "__main__":

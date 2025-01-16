@@ -99,7 +99,7 @@ AutoCompleteList {
 # DATATABLE
 # ---------------------------------------------
 #table-container {
-    border: round $border;
+    border: round $panel;
 }
 
 DataTable {
@@ -163,10 +163,11 @@ CommandPalette {
 
   & #--input {
     height: 3;
-    padding: 0;
+    padding: 0 0;
     margin: 0;
     visibility: visible;
     border: round $border;
+    border-title-align: center;
     background: $background-cp;
 
     &.--list-visible {
@@ -224,7 +225,7 @@ CommandList {
 
   &>.option-list--option-highlighted {
     color: $block-cursor-blurred-foreground;
-    background: $block-cursor-blurred-background;
+    background: $surface;
     text-style: $block-cursor-blurred-text-style;
   }
 
@@ -238,4 +239,18 @@ CommandList {
     text-style: reverse;
   }
 
+}
+
+# -------------------------
+# PICKER
+# -------------------------
+.collection-list--uid {
+    color: $secondary;
+}
+.collection-list--path {
+    color: $primary;
+    text-style: not bold;
+}
+.collection-list--count {
+    color: $foreground;
 }
