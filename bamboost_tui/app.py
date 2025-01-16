@@ -4,19 +4,19 @@ import asyncio
 from contextlib import contextmanager
 from typing import Generator
 
-import rich
 from rich.columns import Columns
 from rich.console import RenderableType
 from rich.spinner import Spinner
 from rich.style import Style
-from rich.table import Row, Table
+from rich.table import Table
 from rich.text import Text
 from textual import on
 from textual.app import App, ComposeResult
 from textual.binding import Binding
+from textual.color import Color
 from textual.containers import Container
 from textual.css.query import NoMatches
-from textual.geometry import Offset
+from textual.geometry import Size
 from textual.message import Message
 from textual.reactive import reactive
 from textual.screen import Screen
@@ -45,6 +45,8 @@ ansi_theme = Theme(
         "input-cursor-foreground": "ansi_white",
         "block-cursor-background": "ansi_black",
         "block-cursor-foreground": "ansi_white",
+        "border": "ansi_bright_black",
+        "border-focus": "ansi_white",
         # "block-hover-background": "$surface",
     },
 )
@@ -99,7 +101,7 @@ class ListOption(Static):
     option_key: str
     """The first column of the option is used as it's key."""
     columns: tuple[RenderableType, ...]
-    description: reactive[RenderableType] = reactive("")
+    description: reactive[RenderableType] = reactive("", init=False)
 
     def __init__(
         self,
@@ -171,7 +173,7 @@ class ListOption(Static):
             self.set_timer(timeout, lambda: setattr(self, attr, original))
 
 
-class MenuList(Widget, can_focus=True):
+class MenuList(Static, can_focus=True):
     """A custom option list widget with three columns."""
 
     BINDINGS = [
@@ -205,6 +207,9 @@ class MenuList(Widget, can_focus=True):
         """Highlight the first option on mount."""
         self.update_highlight()
 
+    def get_content_width(self, container: Size, viewport: Size) -> int:
+        return sum(self.column_widths) + 10
+
     def update_highlight(self) -> None:
         """Update the highlighting of the options."""
         for i, option in enumerate(self.options):
@@ -232,16 +237,24 @@ class MenuList(Widget, can_focus=True):
         self.post_message(self.OptionSelected(self.options[self.highlighted_index]))
 
 
+def variable_to_color(app: App, variable: str) -> str:
+    val = app.theme_variables.get(variable)
+    return Color.parse(val).rich_color.name
+
+
 class ScreenWelcome(Screen):
     def compose(self) -> ComposeResult:
         yield Container(Label(ASCII_LOGO), classes="logo")
-        yield MenuList(
-            ("Index", "Pick a collection from all known collections"),
-            ("Remote", "Show known remote collections"),
-            ("Scan paths", "Scan paths for new collections"),
-            ("Open config", "Open the config file"),
-            ("Exit", "Quit the app"),
-            styles=("cyan", "dim"),
+        yield Container(
+            MenuList(
+                ("Index", "Pick a collection from all known collections"),
+                ("Remote", "Show known remote collections"),
+                ("Scan paths", "Scan paths for new collections"),
+                ("Open config", "Open the config file"),
+                ("Exit", variable_to_color(self.app, "foreground")),
+                styles=("cyan", variable_to_color(self.app, "foreground")),
+            ),
+            classes="menu",
         )
         yield KeybindsIntro()
         yield Footer()
@@ -268,8 +281,8 @@ class ScreenWelcome(Screen):
                 ):
                     from bamboost.index import DEFAULT_INDEX
 
-                    await asyncio.sleep(1)
                     DEFAULT_INDEX.scan_for_collections()
+                    await asyncio.sleep(0.5)
 
             self.run_worker(scan_paths(option))
         elif option.option_key == "Open config":
