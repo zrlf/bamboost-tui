@@ -98,6 +98,15 @@ AutoCompleteList {
 }
 
 # ---------------------------------------------
+# LOADING INDICATOR
+# ---------------------------------------------
+
+LoadingIndicator {
+    background: $background;
+    color: $error;
+}
+
+# ---------------------------------------------
 # DATATABLE
 # ---------------------------------------------
 #table-container {
