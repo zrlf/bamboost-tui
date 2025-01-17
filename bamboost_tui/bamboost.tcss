@@ -106,14 +106,26 @@ AutoCompleteList {
 
     &.placeholder {
         align: center middle;
-
         Static {
-            content-align: center middle;
             width: auto;
             margin-top: 1;
         }
         .logo {
             color: $primary;
+        }
+    }
+
+}
+#header {
+    height: auto;
+    width: 100%;
+    align: left top;
+
+    OpenCollectionsTabs {
+        align: right top;
+        Tab {
+            width: 14;
+            height: 1;
         }
     }
 
