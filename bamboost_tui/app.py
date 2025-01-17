@@ -4,6 +4,7 @@ import asyncio
 from contextlib import contextmanager
 from typing import Generator
 
+from pandas.core.generic import JSONSerializable
 from rich.columns import Columns
 from rich.console import RenderableType
 from rich.spinner import Spinner
@@ -16,7 +17,8 @@ from textual.binding import Binding
 from textual.color import Color
 from textual.containers import Container
 from textual.css.query import NoMatches
-from textual.geometry import Size
+from textual.css.scalar import ScalarOffset
+from textual.geometry import Offset, Size
 from textual.message import Message
 from textual.reactive import reactive
 from textual.screen import Screen
@@ -25,7 +27,7 @@ from textual.widget import Widget
 from textual.widgets import Footer, HelpPanel, Label, Static
 
 from bamboost_tui.collection_picker import CollectionHit, CollectionPicker
-from bamboost_tui.collection_table import ScreenCollection
+from bamboost_tui.collection_table import ScreenCollection, ScreenCollectionPlaceholder
 
 ansi_theme = Theme(
     name="ansi",
@@ -316,7 +318,7 @@ class Bamboost(App):
     BINDINGS = [
         Binding("ctrl+c", "quit", "quit", priority=True, show=False),
         Binding("ctrl+z", "suspend_process"),
-        Binding("q", "pop_screen", "quit screen"),
+        Binding("q", "pop_screen_or_exit", "quit screen"),
         Binding("?", "toggle_help_panel", "Show help"),
     ]
     COMMAND_PALETTE_BINDING = "ctrl+o"
@@ -331,19 +333,32 @@ class Bamboost(App):
         # This fixes the bug that the screen is empty after resuming the app
         self.app_resume_signal.subscribe(self, lambda *_args, **_kwargs: self.refresh())
 
-        self.install_screen(ScreenWelcome(), "welcome")
-        self.push_screen("welcome")
+        # self.install_screen(ScreenWelcome(), "welcome")
+        # self.push_screen("welcome")
+        placeholder = ScreenCollectionPlaceholder()
+        self.push_screen(placeholder)
         # self.push_screen(ScreenCollection())
 
     def action_toggle_help_panel(self):
         try:
-            self.query_one(HelpPanel).remove()
+            help_panel = self.query_one(HelpPanel)
+            # help_panel.visible = not help_panel.visible
+            help_panel.display = not help_panel.display
         except NoMatches:
-            self.action_show_help_panel()
+            self.mount(HelpPanel())
+
+    def action_pop_screen_or_exit(self) -> None:
+        self.pop_screen()
+
+        # if only the default screen is left, exit the app
+        if len(self.screen_stack) <= 1 and self.screen_stack[0].id == "_default":
+            self.exit()
 
     @on(CollectionHit.CollectionSelected)
     def _open_collection(self, message: CollectionHit.CollectionSelected) -> None:
-        self.app.push_screen(ScreenCollection(uid=message.uid))
+        if isinstance(self.screen, ScreenCollectionPlaceholder):
+            self.pop_screen()
+        self.push_screen(ScreenCollection(uid=message.uid))
 
 
 if __name__ == "__main__":

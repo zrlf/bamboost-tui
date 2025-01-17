@@ -68,12 +68,12 @@ CommandLine {
 }
 CommandLineInput {
     border: none;
-    padding: 0;
+    padding: 0 1;
     background: transparent;
     height: 1;
 }
 AutoCompleteList {
-    background: black;
+    background: $background;
     padding: 0 0;
     margin: 0;
     scrollbar-size-vertical: 1;
@@ -84,7 +84,9 @@ AutoCompleteList {
         margin: 0;
     }
     & > .option-list--option-highlighted, & > .option-list--option-hover-highlighted {
-        background: $surface;
+        background: $accent;
+        color: black;
+        text-style: bold;
     }
     .autocomplete--highlight-match {
         background: $accent;
@@ -100,6 +102,21 @@ AutoCompleteList {
 # ---------------------------------------------
 #table-container {
     border: round $panel;
+    height: 100%;
+    color: $foreground;
+
+    &.placeholder {
+        align: center middle;
+
+        Static {
+            content-align: center middle;
+            width: auto;
+            margin-top: 1;
+        }
+        .logo {
+            color: $primary;
+        }
+    }
 }
 
 DataTable {

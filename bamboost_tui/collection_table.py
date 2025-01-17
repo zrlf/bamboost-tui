@@ -1,29 +1,23 @@
 from __future__ import annotations
 
 from datetime import datetime
+from pickle import SHORT_BINBYTES
+from textwrap import dedent
 from typing import TYPE_CHECKING
 
 import pandas as pd
-import rich
 from bamboost.index import DEFAULT_INDEX
-from bamboost.index.sqlmodel import CollectionORM
-from rich.columns import Columns
-from rich.console import RenderableType
+from rich.console import Group
 from rich.highlighter import ReprHighlighter
-from rich.panel import Panel
 from rich.text import Text
 from textual import events
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.command import CommandPalette, Hit, Hits, Matcher, Provider
-from textual.containers import Container
-from textual.content import Content
+from textual.containers import Center, Container, Vertical
 from textual.coordinate import Coordinate
 from textual.geometry import Offset, Region
-from textual.screen import ModalScreen, Screen
-from textual.types import IgnoreReturnCallbackType
-from textual.visual import Style, VisualType
-from textual.widgets import DataTable, Footer, Label, Placeholder, Static
+from textual.screen import Screen
+from textual.widgets import DataTable, Footer, Label, Static
 from textual.widgets.data_table import ColumnKey
 
 from bamboost_tui._datatable import ModifiedDataTable, SortOrder
@@ -31,28 +25,55 @@ from bamboost_tui.collection_picker import CollectionPicker
 from bamboost_tui.commandline import CommandLine
 
 if TYPE_CHECKING:
-    from rich.style import Style as RichStyle
+    pass
 
 
 class ScreenCollection(Screen):
     BINDINGS = [Binding("ctrl+m", "toggle_picker", "toggle the collection picker")]
-    COMPONENT_CLASSES = Screen.COMPONENT_CLASSES | {
-        "collection-list--uid",
-    }
 
     def __init__(self, uid: str) -> None:
         self.uid = uid
         super().__init__()
 
     def compose(self) -> ComposeResult:
-        yield Container(
-            CollectionTable(self.uid),
-            id="table-container",
-        )
+        # yield Container(
+        #     CollectionTable(self.uid),
+        #     id="table-container",
+        # )
+        with Container(id="table-container"):
+            yield CollectionTable(self.uid)
         yield Footer()
 
     def action_toggle_picker(self):
         self.app.push_screen(CollectionPicker())
+
+
+class ScreenCollectionPlaceholder(ScreenCollection):
+    def __init__(self) -> None:
+        Screen.__init__(self, "collection_placeholder")
+
+    def compose(self) -> ComposeResult:
+        with Container(id="table-container", classes="placeholder"):
+            with Center():
+                yield Static(
+                    dedent("""
+                        dP                           dP                                    dP  
+                        88                           88                                    88  
+                        88d888b. .d8888b. 88d8b.d8b. 88d888b. .d8888b. .d8888b. .d8888b. d8888P
+                        88'  `88 88'  `88 88'`88'`88 88'  `88 88'  `88 88'  `88 Y8ooooo.   88  
+                        88.  .88 88.  .88 88  88  88 88.  .88 88.  .88 88.  .88       88   88  
+                        88Y8888' `88888P8 dP  dP  dP 88Y8888' `88888P' `88888P' `88888P'   dP  
+                    """),
+                )
+            with Center():
+                yield Static(
+                    "No collection selected. Press [bold]Ctrl+M[/bold] to open the collection picker.",
+                )
+            with Center():
+                yield Static(
+                    "Hello world",
+                )
+        yield Footer()
 
 
 REPR_HIGHLIGHTER = ReprHighlighter()
