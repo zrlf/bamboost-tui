@@ -132,7 +132,7 @@ class CommandLineInput(Input):
             self.delete(target, self.cursor_position)
 
         # add the new word
-        self.insert_text_at_cursor(text)
+        self.insert_text_at_cursor(text + " ")
 
     def _search_string(self, state: TargetState) -> str:
         """Function that extracts the search string from the current state."""
