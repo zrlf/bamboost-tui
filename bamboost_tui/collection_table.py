@@ -1,24 +1,26 @@
 from __future__ import annotations
 
 from datetime import datetime
-from pickle import SHORT_BINBYTES
 from textwrap import dedent
 from typing import TYPE_CHECKING
 
 import pandas as pd
 from bamboost.index import DEFAULT_INDEX
-from rich.console import Group
 from rich.highlighter import ReprHighlighter
+from rich.table import Table
 from rich.text import Text
 from textual import events
-from textual.app import ComposeResult
+from textual.app import ComposeResult, RenderResult
 from textual.binding import Binding
-from textual.containers import Center, Container, Vertical
+from textual.color import Color
+from textual.containers import Center, Container, Horizontal
 from textual.coordinate import Coordinate
 from textual.geometry import Offset, Region
 from textual.screen import Screen
-from textual.widgets import DataTable, Footer, Label, Static
+from textual.widget import Widget
+from textual.widgets import DataTable, Footer, Static, Tabs
 from textual.widgets.data_table import ColumnKey
+from typing_extensions import Self
 
 from bamboost_tui._datatable import ModifiedDataTable, SortOrder
 from bamboost_tui.collection_picker import CollectionPicker
@@ -28,18 +30,51 @@ if TYPE_CHECKING:
     pass
 
 
+class Header(Widget):
+    DEFAULT_CSS = """
+    Header {
+        height: auto;
+    }
+    """
+    COMPONENT_CLASSES = Static.COMPONENT_CLASSES | {
+        "--uid",
+        "--path",
+    }
+
+    def __init__(self, uid: str, path: str) -> None:
+        self.uid = uid
+        found_path = DEFAULT_INDEX._get_collection_path(uid)
+        self.path = found_path.as_posix() if path else "[Collection location found]"
+        super().__init__(id="collection-header")
+
+    def render(self) -> RenderResult:
+        tab = Table.grid("key", "value", padding=(0, 3))
+        tab.add_row(
+            "UID:",
+            self.uid,
+            style=self.get_component_rich_style("--uid", partial=True),
+        )
+        tab.add_row(
+            "Path:",
+            self.path or "[collection not found]",
+            style=self.get_component_rich_style("--path", partial=True),
+        )
+        return tab
+
+class OpenCollectionsTabs(Tabs):
+    pass
+
 class ScreenCollection(Screen):
     BINDINGS = [Binding("ctrl+m", "toggle_picker", "toggle the collection picker")]
 
     def __init__(self, uid: str) -> None:
         self.uid = uid
-        super().__init__()
+        super().__init__(uid)
 
     def compose(self) -> ComposeResult:
-        # yield Container(
-        #     CollectionTable(self.uid),
-        #     id="table-container",
-        # )
+        with Horizontal():
+            yield Header(self.uid, "/dummy/path")
+            yield OpenCollectionsTabs()
         with Container(id="table-container"):
             yield CollectionTable(self.uid)
         yield Footer()
@@ -64,10 +99,13 @@ class ScreenCollectionPlaceholder(ScreenCollection):
                         88.  .88 88.  .88 88  88  88 88.  .88 88.  .88 88.  .88       88   88  
                         88Y8888' `88888P8 dP  dP  dP 88Y8888' `88888P' `88888P' `88888P'   dP  
                     """),
+                    classes="logo",
                 )
             with Center():
+                val = self.app.theme_variables.get("secondary")
+                c = Color.parse(val).rich_color.name
                 yield Static(
-                    "No collection selected. Press [bold]Ctrl+M[/bold] to open the collection picker.",
+                    f"No collection selected. Press [bold {c}]Ctrl+M[/bold {c}] to open the collection picker.",
                 )
             with Center():
                 yield Static(
@@ -135,17 +173,23 @@ class CollectionTable(ModifiedDataTable):
 
     def on_mount(self):
         """Load the data, create columns and rows."""
-
         sims = DEFAULT_INDEX.collection(self.uid).simulations
         tab = [i.as_dict(standalone=False) for i in sims]
         self.df = pd.DataFrame.from_records(tab)
+        self.recreate_table()
 
+    def recreate_table(self) -> Self:
+        # clear the current table
+        self.clear(True)
+
+        # build columns and rows from dataframe
         for col in self.df.columns:
             self.add_column(str(col), key=str(col))
         for row in self.df.values:
             self.add_row(*row)
 
         self.fixed_columns = 1
+        return self
 
     def _create_subgroup_mapping(self):
         for binding in Binding.make_bindings(self.BINDINGS):
