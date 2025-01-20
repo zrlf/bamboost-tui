@@ -1,5 +1,23 @@
 $background-cp: transparent;
 
+
+#nav-container {
+    border: round $border;
+    width: 100%;
+
+    & > Navigation {
+        width: 2fr;
+        border-right: vkey $border;
+    }
+    & > NavigationStatic {
+        width: 1fr;
+        border-right: vkey $border;
+    }
+    & > NavigationPreview {
+        width: 2fr;
+    }
+}
+
 ScreenWelcome {
     align: center middle;
     layout: vertical;

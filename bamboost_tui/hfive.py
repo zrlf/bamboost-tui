@@ -1,0 +1,381 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from functools import lru_cache
+from typing import Literal, Sequence, cast
+
+from bamboost import constants
+from bamboost._typing import StrPath
+from bamboost.core.hdf5.attrs_dict import AttrsDict
+from bamboost.core.hdf5.file import HDF5Path
+from bamboost.core.hdf5.ref import Group
+from bamboost.core.simulation import Simulation
+from rich.segment import Segment
+from rich.style import Style
+from rich.table import Table
+from sqlalchemy.util.typing import NoneFwd
+from textual import on
+from textual.app import ComposeResult, RenderResult
+from textual.binding import Binding
+from textual.containers import Horizontal, Vertical
+from textual.geometry import Offset, Region, Size
+from textual.message import Message
+from textual.reactive import reactive, var
+from textual.screen import Screen
+from textual.scroll_view import ScrollView
+from textual.strip import Strip
+from textual.widget import Widget
+from textual.widgets import Footer, Placeholder, Static
+
+
+class Header(Static, can_focus=False):
+    DEFAULT_CSS = """
+    Header {
+        height: auto;
+        width: auto;
+    }
+    .--uid {
+        color: $accent;
+    }
+    .--path {
+        color: $primary;
+    }
+    """
+    COMPONENT_CLASSES = {
+        "--uid",
+        "--path",
+    }
+    path: str
+
+    def __init__(self, uid: str, path: StrPath) -> None:
+        self.uid = uid
+        self.path = path if isinstance(path, str) else path.as_posix()
+        super().__init__(id="nav-header")
+
+    def render(self) -> RenderResult:
+        tab = Table.grid("key", "value", padding=(0, 3))
+        tab.add_row(
+            "UID:",
+            self.uid,
+            style=self.get_component_rich_style("--uid", partial=True),
+        )
+        tab.add_row(
+            "Path:",
+            self.path,
+            style=self.get_component_rich_style("--path", partial=True),
+        )
+        return tab
+
+
+class AttrsView(Widget, can_focus=True):
+    DEFAULT_CSS = """
+    AttrsView {
+        height: 1fr;
+        width: 1fr;
+        background: $background;
+        border: round $border;
+    }
+    AttrsView > .--key {
+        color: $accent;
+    }
+    AttrsView > .--value {
+        color: $primary;
+    }
+    """
+    COMPONENT_CLASSES = {
+        "--key",
+        "--value",
+    }
+    attrs: reactive[AttrsDict | None] = reactive(None)
+
+    def __init__(
+        self, attrs: AttrsDict | None = None, *, id: str | None = None
+    ) -> None:
+        super().__init__(id=id)
+        self.attrs = attrs
+
+    def render(self) -> RenderResult:
+        if self.attrs is None:
+            return ""
+
+        tab = Table.grid("key", "value", padding=(0, 3))
+        for key, value in self.attrs.items():
+            tab.add_row(
+                key,
+                str(value),
+                style=self.get_component_rich_style("--key", partial=True),
+            )
+        return tab
+
+
+@dataclass
+class GroupData:
+    path: HDF5Path
+    groups: Sequence[str]
+    datasets: Sequence[str]
+    attrs: AttrsDict
+
+    @property
+    def length(self) -> int:
+        return len(self.groups) + len(self.datasets)
+
+    def get_item_at(self, index: int) -> str:
+        try:
+            return self.groups[index]
+        except IndexError:
+            return self.datasets[index - len(self.groups)]
+
+
+@dataclass
+class NavigationState:
+    cursor_row: int
+    level: int
+    group_data: GroupData | None
+    scroll_offset_y: float = 0
+
+
+class NavigationList(ScrollView):
+    COMPONENT_CLASSES = {
+        "--cursor",
+        "--group",
+        "--dataset",
+    }
+    DEFAULT_CSS = """
+    NavigationList {
+        scrollbar-size-vertical: 0;
+    }
+    """
+    cursor_row: var[int] = var(0)
+    level: var[int] = var(0)
+    _group_data: var[GroupData | None] = var(None)  # type: ignore
+
+    @dataclass
+    class GroupHighlighted(Message):
+        obj: NavigationList
+        highlighted_path: HDF5Path
+
+    @dataclass
+    class GroupChanged(Message):
+        path: HDF5Path
+        direction: Literal["up", "down"] = "down"
+
+    def render_line(self, y: int) -> Strip:
+        _, scroll_y = self.scroll_offset
+        y += scroll_y
+
+        if y == self.cursor_row:
+            cursor = self.get_component_rich_style("--cursor", partial=True)
+        else:
+            cursor = Style.null()
+
+        group_data = self._group_data
+        if group_data is None:
+            return Strip([])
+
+        try:
+            item = group_data.groups[y]
+            style = Style.combine((cursor, self.get_component_rich_style("--group")))
+        except IndexError:
+            try:
+                item = group_data.datasets[y - len(group_data.groups)]
+                style = Style.combine(
+                    (cursor, self.get_component_rich_style("--dataset"))
+                )
+            except IndexError:
+                return Strip([])
+
+        strip = Strip([Segment(item.ljust(self.size.width), style=style)])
+        return strip
+
+    def get_navigation_state(self) -> NavigationState:
+        return NavigationState(
+            cursor_row=self.cursor_row,
+            level=self.level,
+            group_data=self._group_data,
+            scroll_offset_y=self.scroll_y,
+        )
+
+    def set_navigation_state(self, state: NavigationState | None) -> None:
+        if state is None:
+            state = NavigationState(0, 0, None)
+
+        with self.prevent(Message):
+            self.level = state.level
+            self._group_data = state.group_data
+
+        self.scroll_y = state.scroll_offset_y
+        self.cursor_row = state.cursor_row
+
+    def watch__group_data(self, _old: GroupData, new: GroupData | None) -> None:
+        if new is not None:
+            self.virtual_size = Size(1, new.length)
+            self.cursor_row = 0
+
+        self.refresh(layout=True)
+
+
+class Navigation(NavigationList, can_focus=True):
+    BINDINGS = [
+        Binding("j,down", "cursor_down"),
+        Binding("k,up", "cursor_up"),
+        Binding("l,right", "cursor_right"),
+        Binding("h,left", "cursor_left"),
+    ]
+
+    def action_cursor_down(self) -> None:
+        y = min(self.cursor_row + 1, self._group_data.length - 1)
+        self.scroll_to_region(Region(0, y, 1, 1), animate=False)
+        self.cursor_row = y
+
+    def action_cursor_up(self) -> None:
+        y = max(self.cursor_row - 1, 0)
+        self.scroll_to_region(Region(0, y, 1, 1), animate=False)
+        self.cursor_row = y
+
+    def action_cursor_right(self) -> None:
+        try:
+            highlighted = self._group_data.get_item_at(self.cursor_row)
+            highlighted_path = self._group_data.path.joinpath(highlighted)
+        except IndexError:
+            return
+
+        if highlighted not in self._group_data.groups:
+            return
+
+        self.post_message(Navigation.GroupChanged(highlighted_path, "down"))
+
+    def action_cursor_left(self) -> None:
+        self.post_message(Navigation.GroupChanged(self._group_data.path.parent, "up"))
+
+    def _highlight_row(self, y: int) -> None:
+        try:
+            highlighted_path = self._group_data.path.joinpath(
+                self._group_data.get_item_at(y)
+            )
+            self.post_message(Navigation.GroupHighlighted(self, highlighted_path))
+        except (IndexError, AttributeError):
+            return
+
+    def watch_cursor_row(self, old: int, new: int) -> None:
+        if new < 0:
+            return
+        scroll_y = self.scroll_offset[1]
+        old_region = Region(0, old - scroll_y, self.size.width, 1)
+        new_region = Region(0, new - scroll_y, self.size.width, 1)
+
+        self._highlight_row(new)
+        self.refresh(old_region, new_region)
+
+
+class NavigationStatic(NavigationList, can_focus=False):
+    def __init__(self, nav: HFive, group: GroupData) -> None:
+        super().__init__()
+        self._nav = nav
+        self._group = group
+
+
+class NavigationPreview(Placeholder):
+    def __init__(self, nav: HFive, group: GroupData) -> None:
+        super().__init__(classes="ph")
+        self._nav = nav
+        self._group = group
+
+
+class HFive(Screen):
+    DEFAULT_CSS = """
+    HFive > Vertical {
+        layout: grid;
+        grid-rows: 3fr 2fr;
+    }
+
+    NavigationList {
+        background: $background;
+        height: 100%;
+
+        & > .--cursor {
+            text-style: reverse bold;
+        }
+        & > .--group {
+            color: $accent;
+        }
+        & > .--dataset {
+            color: $primary;
+        }
+    }
+    Navigation {
+        width: 2fr;
+        border-right: vkey $border;
+    }
+    NavigationStatic {
+        display: none;
+        width: 1fr;
+        border-right: vkey $border;
+    }
+    NavigationPreview {
+        width: 1fr;
+    }
+    """
+
+    def __init__(self, collection_uid: str, simulation_name: str) -> None:
+        super().__init__("hfive")
+        self.collection_uid = collection_uid
+        self.simulation_name = simulation_name
+        self.simulation = Simulation.from_uid(
+            f"{collection_uid}{constants.UID_SEPARATOR}{simulation_name}"
+        )
+        self._root = self.simulation.root
+        with self.simulation._file.open() as f:
+            f.file_map.populate()
+        self._stack: list[NavigationState] = []
+
+    def on_mount(self) -> None:
+        self.query_one(Navigation).set_navigation_state(
+            NavigationState(0, 0, self._get_group_data(HDF5Path("/")))
+        )
+
+    def compose(self) -> ComposeResult:
+        yield Header(self.simulation.uid, self.simulation.path)
+        with Vertical() as v:
+            with Horizontal(id="nav-container"):
+                yield NavigationStatic(self, self._get_group_data(HDF5Path("/")))
+                yield Navigation()
+                yield NavigationPreview(self, self._get_group_data(HDF5Path("/")))
+            with Horizontal() as h:
+                yield AttrsView(self.simulation.root.attrs, id="current-group-attrs")
+                yield AttrsView(id="highlighted-attrs")
+        yield Footer()
+
+    @lru_cache(100)
+    def _get_group_data(self, path: HDF5Path) -> GroupData:
+        group = self._root[path, Group]
+        return GroupData(path, group.groups(), group.datasets(), group.attrs)
+
+    @on(Navigation.GroupHighlighted)
+    def _on_group_highlighted(self, message: Navigation.GroupHighlighted) -> None:
+        w = cast(AttrsView, self.query_one("#highlighted-attrs"))
+        w.attrs = self._get_group_data(message.highlighted_path).attrs
+
+    @on(Navigation.GroupChanged)
+    def _on_group_changed(self, message: Navigation.GroupChanged) -> None:
+        w = cast(AttrsView, self.query_one("#current-group-attrs"))
+        w.attrs = self._get_group_data(message.path).attrs
+
+        navigation_widget = self.query_one(Navigation)
+        static_widget = self.query_one(NavigationStatic)
+
+        if message.direction == "up":
+            previous_state = self._stack.pop()
+            navigation_widget.set_navigation_state(previous_state)
+            if not self._stack:
+                static_widget.styles.display = "none"
+
+        else:
+            self._stack.append(navigation_widget.get_navigation_state())
+            new_state = NavigationState(
+                0, navigation_widget.level + 1, self._get_group_data(message.path)
+            )
+            navigation_widget.set_navigation_state(new_state)
+            static_widget.styles.display = "block"
+
+        static_state = self._stack[-1] if self._stack else None
+        static_widget.set_navigation_state(static_state)
