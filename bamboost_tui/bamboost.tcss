@@ -4,6 +4,9 @@ $background-cp: transparent;
 #nav-container {
     border: round $border;
     width: 100%;
+    &:focus-within {
+        border: round $accent;
+    }
 
     & > Navigation {
         width: 2fr;
@@ -12,9 +15,29 @@ $background-cp: transparent;
     & > NavigationStatic {
         width: 1fr;
         border-right: vkey $border;
+
     }
     & > NavigationPreview {
         width: 2fr;
+    }
+}
+AttrsView {
+    &:focus-within {
+        border: round $accent;
+    }
+}
+NavigationBase {
+    background: $background;
+    height: 100%;
+
+    & > .--cursor {
+        text-style: reverse bold;
+    }
+    & > .--group {
+        color: $secondary;
+    }
+    & > .--dataset {
+        color: $primary;
     }
 }
 

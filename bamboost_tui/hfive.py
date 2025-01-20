@@ -4,15 +4,19 @@ from dataclasses import dataclass
 from functools import lru_cache
 from typing import Literal, Sequence, cast
 
+import rich
 from bamboost import constants
 from bamboost._typing import StrPath
 from bamboost.core.hdf5.attrs_dict import AttrsDict
 from bamboost.core.hdf5.file import HDF5Path
-from bamboost.core.hdf5.ref import Group
+from bamboost.core.hdf5.ref import Dataset, Group
 from bamboost.core.simulation import Simulation
+from rich.padding import Padding
+from rich.rule import Rule
 from rich.segment import Segment
 from rich.style import Style
 from rich.table import Table
+from rich.text import Text
 from sqlalchemy.util.typing import NoneFwd
 from textual import on
 from textual.app import ComposeResult, RenderResult
@@ -134,14 +138,14 @@ class NavigationState:
     scroll_offset_y: float = 0
 
 
-class NavigationList(ScrollView):
+class NavigationBase(ScrollView):
     COMPONENT_CLASSES = {
         "--cursor",
         "--group",
         "--dataset",
     }
     DEFAULT_CSS = """
-    NavigationList {
+    NavigationBase {
         scrollbar-size-vertical: 0;
     }
     """
@@ -151,7 +155,7 @@ class NavigationList(ScrollView):
 
     @dataclass
     class GroupHighlighted(Message):
-        obj: NavigationList
+        obj: NavigationBase
         highlighted_path: HDF5Path
 
     @dataclass
@@ -184,8 +188,10 @@ class NavigationList(ScrollView):
             except IndexError:
                 return Strip([])
 
-        strip = Strip([Segment(item.ljust(self.size.width), style=style)])
-        return strip
+        strip = Strip([Segment(item, style=style)])
+        return strip.crop_pad(
+            strip.cell_length, 1, self.size.width - strip.cell_length, style
+        )
 
     def get_navigation_state(self) -> NavigationState:
         return NavigationState(
@@ -214,7 +220,7 @@ class NavigationList(ScrollView):
         self.refresh(layout=True)
 
 
-class Navigation(NavigationList, can_focus=True):
+class Navigation(NavigationBase, can_focus=True):
     BINDINGS = [
         Binding("j,down", "cursor_down"),
         Binding("k,up", "cursor_up"),
@@ -245,7 +251,13 @@ class Navigation(NavigationList, can_focus=True):
         self.post_message(Navigation.GroupChanged(highlighted_path, "down"))
 
     def action_cursor_left(self) -> None:
+        if self.level == 0:
+            return
         self.post_message(Navigation.GroupChanged(self._group_data.path.parent, "up"))
+
+    def set_navigation_state(self, state: NavigationState | None) -> None:
+        super().set_navigation_state(state)
+        self._highlight_row(self.cursor_row)
 
     def _highlight_row(self, y: int) -> None:
         try:
@@ -267,18 +279,38 @@ class Navigation(NavigationList, can_focus=True):
         self.refresh(old_region, new_region)
 
 
-class NavigationStatic(NavigationList, can_focus=False):
+class NavigationStatic(NavigationBase, can_focus=False):
     def __init__(self, nav: HFive, group: GroupData) -> None:
         super().__init__()
         self._nav = nav
         self._group = group
 
 
-class NavigationPreview(Placeholder):
-    def __init__(self, nav: HFive, group: GroupData) -> None:
-        super().__init__(classes="ph")
-        self._nav = nav
-        self._group = group
+class NavigationPreview(Static):
+    path: reactive[HDF5Path | None] = reactive(None, layout=True)
+
+    def __init__(self, root_group: Group) -> None:
+        super().__init__()
+        self._root = root_group
+        """The root group of the simulation hdf5 file."""
+
+    def render(self) -> RenderResult:
+        if self.path is None:
+            return ""
+
+        obj = self._root[self.path]
+        if isinstance(obj, Dataset):
+            return rich.console.Group(
+                Text(str(obj), style="blue"),
+                Rule(style="black"),
+                Text(str(obj[()])),
+            )
+
+        return rich.console.Group(
+            Text(str(obj), style="blue"),
+            Rule(style="black"),
+            Text("An HDF5 Group"),
+        )
 
 
 class HFive(Screen):
@@ -288,7 +320,7 @@ class HFive(Screen):
         grid-rows: 3fr 2fr;
     }
 
-    NavigationList {
+    NavigationBase {
         background: $background;
         height: 100%;
 
@@ -325,7 +357,7 @@ class HFive(Screen):
         )
         self._root = self.simulation.root
         with self.simulation._file.open() as f:
-            f.file_map.populate()
+            f.file_map.populate(exclude_numeric=False)
         self._stack: list[NavigationState] = []
 
     def on_mount(self) -> None:
@@ -339,10 +371,14 @@ class HFive(Screen):
             with Horizontal(id="nav-container"):
                 yield NavigationStatic(self, self._get_group_data(HDF5Path("/")))
                 yield Navigation()
-                yield NavigationPreview(self, self._get_group_data(HDF5Path("/")))
+                yield NavigationPreview(self._root)
             with Horizontal() as h:
-                yield AttrsView(self.simulation.root.attrs, id="current-group-attrs")
-                yield AttrsView(id="highlighted-attrs")
+                attrs1 = AttrsView(self.simulation.root.attrs, id="current-group-attrs")
+                attrs1.border_title = "Current Group Attributes"
+                attrs2 = AttrsView(id="highlighted-attrs")
+                attrs2.border_title = "Highlighted Group Attributes"
+                yield attrs1
+                yield attrs2
         yield Footer()
 
     @lru_cache(100)
@@ -354,6 +390,9 @@ class HFive(Screen):
     def _on_group_highlighted(self, message: Navigation.GroupHighlighted) -> None:
         w = cast(AttrsView, self.query_one("#highlighted-attrs"))
         w.attrs = self._get_group_data(message.highlighted_path).attrs
+
+        preview_widget = self.query_one(NavigationPreview)
+        preview_widget.path = message.highlighted_path
 
     @on(Navigation.GroupChanged)
     def _on_group_changed(self, message: Navigation.GroupChanged) -> None:
