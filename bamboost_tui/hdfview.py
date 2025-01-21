@@ -35,7 +35,7 @@ from textual.binding import Binding
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.geometry import Region, Size
 from textual.message import Message
-from textual.reactive import reactive, var
+from textual.reactive import var
 from textual.screen import Screen
 from textual.scroll_view import ScrollView
 from textual.strip import Strip
@@ -50,10 +50,10 @@ class Header(Static, can_focus=False):
         width: auto;
     }
     .--uid {
-        color: $accent;
+        color: $primary;
     }
     .--path {
-        color: $primary;
+        color: $secondary;
     }
     """
     COMPONENT_CLASSES = {
@@ -83,22 +83,6 @@ class Header(Static, can_focus=False):
 
 
 class AttrsView(VerticalScroll, can_focus=True):
-    DEFAULT_CSS = """
-    AttrsView {
-        background: $background;
-        border: round $border;
-
-        &:focus-within {
-            border: round $accent;
-        }
-    }
-    AttrsView > .--key {
-        color: $accent;
-    }
-    AttrsView > .--value {
-        color: $primary;
-    }
-    """
     COMPONENT_CLASSES = {
         "--key",
         "--value",
@@ -127,7 +111,7 @@ class AttrsView(VerticalScroll, can_focus=True):
 
         tab = Table.grid("key", "value", padding=(0, 2))
         for key, value in self.attrs.items():
-            text = Text(str(value))
+            text = Text(str(value), style=self.get_component_rich_style("--value"))
             ReprHighlighter().highlight(text)
             tab.add_row(
                 key,
@@ -174,17 +158,15 @@ class NavigationStatic(ScrollView, can_focus=False):
     DEFAULT_CSS = """
     NavigationStatic {
         scrollbar-size-vertical: 0;
-        background: $background;
-        height: 100%;
 
         & > .--cursor {
             text-style: reverse bold;
         }
         & > .--group {
-            color: $accent;
+            color: $primary;
         }
         & > .--dataset {
-            color: $primary;
+            color: $secondary;
         }
         & > .--hovered {
             background: $surface;
@@ -367,6 +349,12 @@ class NavigationPreview(VerticalScroll, can_focus=False):
     object.
     """
 
+    COMPONENT_CLASSES = {
+        "--object",
+        "--rule",
+        "--content",
+    }
+
     # path: reactive[HDF5Path | None] = reactive(None, layout=True)
     path: var[HDF5Path | None] = var(None)
 
@@ -384,53 +372,24 @@ class NavigationPreview(VerticalScroll, can_focus=False):
 
         obj = self._root[self.path]
         if isinstance(obj, Dataset):
-            renderable = rich.console.Group(
-                Text(str(obj), style="blue"),
-                Rule(style="black"),
-                Text(str(obj[()])),
+            renderable_object = Text(
+                str(obj[()]), style=self.get_component_rich_style("--content")
             )
         else:
-            renderable = rich.console.Group(
-                Text(str(obj), style="blue"),
-                Rule(style="black"),
-                Text("An HDF5 Group"),
+            renderable_object = Text(
+                "An HDF5 Group", style=self.get_component_rich_style("--content")
             )
+
+        renderable = rich.console.Group(
+            Text(str(obj), style=self.get_component_rich_style("--object")),
+            Rule(style=self.get_component_rich_style("--rule")),
+            renderable_object,
+        )
 
         self.query_one(Static).update(renderable)
 
 
 class HDFViewer(Screen):
-    DEFAULT_CSS = """
-    HDFViewer > Vertical {
-        layout: grid;
-        grid-rows: 3fr 2fr;
-    }
-
-    #nav-container {
-        border: round $border;
-
-        &:focus-within {
-            border: round $accent;
-        }
-    }
-    NavigationStatic {
-        margin: 0 1;
-    }
-    #nav-center {
-        width: 2fr;
-        border-right: vkey $border;
-    }
-    #nav-static {
-        display: none;
-        width: 1fr;
-        border-right: vkey $border;
-    }
-    #nav-preview {
-        width: 2fr;
-        padding: 0 1;
-    }
-    """
-
     def __init__(self, collection_uid: str, simulation_name: str) -> None:
         super().__init__("hdfviewer")
         self.collection_uid = collection_uid

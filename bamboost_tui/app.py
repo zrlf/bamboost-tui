@@ -51,6 +51,8 @@ class Bamboost(App):
             self.ansi_theme.ansi_colors
             self.theme = "ansi"
             self.ansi_color = ansi_colors_set
+        else:
+            self.theme = "nord"
 
         # This fixes the bug that the screen is empty after resuming the app
         self.app_resume_signal.subscribe(self, lambda *_args, **_kwargs: self.refresh())

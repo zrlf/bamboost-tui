@@ -1,24 +1,21 @@
 from __future__ import annotations
 
-import weakref
 from datetime import datetime
-from functools import partial
 from itertools import chain, cycle
 from textwrap import dedent
-from typing import TYPE_CHECKING, Mapping
+from typing import TYPE_CHECKING
 
 import pandas as pd
 from bamboost.index import DEFAULT_INDEX
 from rich.highlighter import ReprHighlighter
 from rich.table import Table
 from rich.text import Text
-from textual import events, on, work
+from textual import on, work
 from textual.app import ComposeResult, RenderResult
 from textual.binding import Binding
 from textual.color import Color
 from textual.containers import Center, Container, Horizontal, Right
 from textual.coordinate import Coordinate
-from textual.css.query import NoMatches
 from textual.geometry import Offset, Region
 from textual.reactive import reactive
 from textual.screen import Screen
@@ -31,6 +28,7 @@ from bamboost_tui._datatable import ModifiedDataTable, SortOrder
 from bamboost_tui.collection_picker import CollectionHit, CollectionPicker
 from bamboost_tui.commandline import CommandLine
 from bamboost_tui.hdfview import HDFViewer
+from bamboost_tui.utils import KeySubgroupsMixin
 
 if TYPE_CHECKING:
     pass
@@ -262,7 +260,7 @@ def cell_highlighter(cell: object) -> Text:
     return highlighted
 
 
-class CollectionTable(ModifiedDataTable):
+class CollectionTable(ModifiedDataTable, KeySubgroupsMixin):
     BINDINGS = [
         Binding("j", "cursor_down", "move cursor down", show=False),
         Binding("k", "cursor_up", "move cursor up", show=False),
@@ -282,11 +280,6 @@ class CollectionTable(ModifiedDataTable):
 
     Explore your simulations in this collection. Enter to view the respective HDF file.
     """
-    DEFAULT_CSS = """
-    CollectionTable {
-        height: 100%;
-    }
-    """
 
     df: reactive[pd.DataFrame | None] = reactive(None, init=False, always_update=True)
 
@@ -303,10 +296,6 @@ class CollectionTable(ModifiedDataTable):
         self.uid: str = uid
         """The collection uid to display."""
 
-        self._SUBGROUPS: dict[str, dict[str, Binding]] = {}
-        """Mapping of subgroup keys to a dictionary of bindings."""
-        self._subgroup: dict[str, Binding] | None = None
-        """The current subgroup of bindings."""
         self._create_subgroup_mapping()
 
     async def watch_df(self, _old, _new: pd.DataFrame | None) -> None:
@@ -343,46 +332,6 @@ class CollectionTable(ModifiedDataTable):
 
         self.fixed_columns = 1
         return self
-
-    def _create_subgroup_mapping(self):
-        for binding in Binding.make_bindings(self.BINDINGS):
-            if len(binding.key.split(">")) > 1:
-                subgroup_key, key = binding.key.split(">")
-                self._SUBGROUPS.setdefault(subgroup_key, {})[key] = Binding(
-                    key,
-                    binding.action,
-                    binding.description,
-                    binding.show,
-                    binding.key_display,
-                    binding.priority,
-                    binding.tooltip,
-                    binding.id,
-                    binding.system,
-                )
-
-    def _enter_subgroup(self, key: events.Key) -> None:
-        self._subgroup = self._SUBGROUPS.get(key.key)
-
-    def _resolve_subgroup(self, subgroup: dict[str, Binding], key: events.Key) -> None:
-        action = subgroup[key.key].action
-        key.prevent_default()
-        key.stop()
-        self._subgroup = None
-        # call the action for the binding
-        getattr(self, "action_" + action)()
-
-    def on_key(self, event: events.Key) -> None:
-        # if we're in a subgroup, check group specific binding
-        if self._subgroup is not None:
-            if event.key in self._subgroup:
-                return self._resolve_subgroup(self._subgroup, event)
-            else:
-                self._subgroup = None
-                return
-
-        # if the key leads to a subgroup, enter it
-        if event.key in self._SUBGROUPS:
-            self._enter_subgroup(event)
 
     def _create_command_line_for_collection(self):
         assert self.df is not None

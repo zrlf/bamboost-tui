@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from time import monotonic
 
-from bamboost.index import DEFAULT_INDEX
 from bamboost.index.sqlmodel import CollectionORM
 from rich.console import Group
 from rich.style import Style as RichStyle
@@ -83,6 +82,8 @@ class Picker(Provider):
         self.styles: dict[str, RichStyle] = {}
 
     async def startup(self) -> None:
+        from bamboost.index import DEFAULT_INDEX
+
         app = active_app.get()
         self.styles["uid"] = app.screen.get_component_rich_style(
             "collection-list--uid", partial=True
