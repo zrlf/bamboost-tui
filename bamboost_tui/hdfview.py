@@ -41,6 +41,8 @@ from textual.scroll_view import ScrollView
 from textual.strip import Strip
 from textual.widgets import Footer, Static
 
+from bamboost_tui.utils import KeySubgroupsMixin
+
 
 class Header(Static, can_focus=False):
     DEFAULT_CSS = """
@@ -148,7 +150,7 @@ class NavigationState:
     scroll_offset_y: float = 0
 
 
-class NavigationStatic(ScrollView, can_focus=False):
+class NavigationStatic(ScrollView, can_focus=False, inherit_bindings=False):
     COMPONENT_CLASSES = {
         "--cursor",
         "--group",
@@ -277,13 +279,21 @@ class NavigationStatic(ScrollView, can_focus=False):
             self.refresh_line(new)
 
 
-class Navigation(NavigationStatic, can_focus=True):
+class Navigation(
+    NavigationStatic, KeySubgroupsMixin, can_focus=True, inherit_bindings=False
+):
     BINDINGS = [
         Binding("j,down", "cursor_down"),
         Binding("k,up", "cursor_up"),
-        Binding("l,right,enter", "cursor_right"),
-        Binding("h,left,escape", "cursor_left"),
+        Binding("l,right,enter", "cursor_right", "Move into group"),
+        Binding("h,left,escape", "cursor_left", "Move out of group"),
+        Binding("g>g", "cursor_top", "Go to top"),
+        Binding("G", "cursor_bottom", "Go to bottom"),
     ]
+    BINDING_GROUP_TITLE = "Navigation Panel"
+
+    def on_mount(self) -> None:
+        self._create_subgroup_mapping()
 
     def action_cursor_down(self) -> None:
         y = min(self.cursor_row + 1, self._group_data.length - 1)
@@ -311,6 +321,12 @@ class Navigation(NavigationStatic, can_focus=True):
         if self.level == 0:
             return
         self.post_message(Navigation.GroupChanged(self._group_data.path.parent, "up"))
+
+    def action_cursor_top(self) -> None:
+        self.cursor_row = 0
+
+    def action_cursor_bottom(self) -> None:
+        self.cursor_row = self._group_data.length - 1
 
     def set_navigation_state(self, state: NavigationState | None) -> None:
         super().set_navigation_state(state)

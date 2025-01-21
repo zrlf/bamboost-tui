@@ -11,7 +11,6 @@ from rich.highlighter import ReprHighlighter
 from rich.table import Table
 from rich.text import Text
 from textual import on, work
-from textual.app import ComposeResult, RenderResult
 from textual.binding import Binding
 from textual.color import Color
 from textual.containers import Center, Container, Horizontal, Right
@@ -31,7 +30,7 @@ from bamboost_tui.hdfview import HDFViewer
 from bamboost_tui.utils import KeySubgroupsMixin
 
 if TYPE_CHECKING:
-    pass
+    from textual.app import ComposeResult, RenderResult
 
 
 class Header(Widget, can_focus=False):
@@ -123,12 +122,14 @@ class OpenCollectionsTabs(Widget):
         yield from (Tab(key, id=f"tab-{key}") for key in self.tabs)
 
 
-class ScreenCollection(Screen):
+class ScreenCollection(Screen, inherit_bindings=False):
     BINDINGS = [
         Binding("ctrl+m", "toggle_picker", "toggle the collection picker"),
         Binding("ctrl+t", "cycle_tabs", "cycle through tabs", show=False),
-        Binding("q", "close", "close collection"),
+        Binding("q", "close", "close collection", show=False),
     ]
+    BINDING_GROUP_TITLE = "Screen commands"
+
     _open_collections: reactive[dict[str, CollectionTable]] = reactive(dict, init=False)
     current_uid: reactive[str | None] = reactive(None, repaint=False)
 
@@ -260,28 +261,30 @@ def cell_highlighter(cell: object) -> Text:
     return highlighted
 
 
-class CollectionTable(ModifiedDataTable, KeySubgroupsMixin):
+class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=False):
     BINDINGS = [
-        Binding("j", "cursor_down", "move cursor down", show=False),
-        Binding("k", "cursor_up", "move cursor up", show=False),
-        Binding("l", "cursor_right", "move cursor right", show=False),
-        Binding("h", "cursor_left", "move cursor left", show=False),
+        Binding("j,down", "cursor_down", "move cursor down", show=False),
+        Binding("k,up", "cursor_up", "move cursor up", show=False),
+        Binding("l,right", "cursor_right", "move cursor right", show=False),
+        Binding("h,left", "cursor_left", "move cursor left", show=False),
         Binding("s", "sort_column", "sort column"),
-        Binding("G", "cursor_to_end", "move cursor to end"),
-        Binding("g>g", "cursor_to_home", "move cursor to home"),
-        Binding(":", "enter_command_mode", "enter command mode", show=False),
-        Binding("enter", "select_cursor", "select cursor", show=False),
+        Binding("G", "cursor_to_end", "move cursor to end", show=False),
+        Binding("g>g", "cursor_to_home", "move cursor to start", show=False),
+        Binding(":", "enter_command_mode", "enter command mode", show=True),
+        Binding("enter", "select_cursor", "show simulation", show=False),
+        Binding("ctrl+d,pagedown", "page_down", "scroll page down", show=False),
+        Binding("ctrl+u,pageup", "page_up", "scroll page up", show=False),
     ]
+    BINDING_GROUP_TITLE = "Collection commands"
     COMPONENT_CLASSES = DataTable.COMPONENT_CLASSES | {
         "datatable--label",
     }
     HELP = """
-    # Collection table
-
     Explore your simulations in this collection. Enter to view the respective HDF file.
     """
 
     df: reactive[pd.DataFrame | None] = reactive(None, init=False, always_update=True)
+    """The pandas DataFrame from which the table is built."""
 
     def __init__(self, uid: str):
         super().__init__(

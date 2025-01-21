@@ -44,6 +44,7 @@ class Bamboost(App):
         Binding("?", "toggle_help_panel", "Show help"),
     ]
     COMMAND_PALETTE_BINDING = "ctrl+o"
+    BINDING_GROUP_TITLE = "App commands"
 
     def on_mount(self) -> None:
         if ansi_colors_set := self.ansi_color:

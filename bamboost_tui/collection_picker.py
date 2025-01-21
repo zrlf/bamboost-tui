@@ -121,6 +121,7 @@ class Picker(Provider):
             # yield Hit(1.0, self._render(coll), self.app.pop_screen)
             yield CollectionHit(1.0, coll, self)
 
+from textual.widgets import HelpPanel
 
 class CollectionPicker(CommandPalette):
     BINDINGS = [
