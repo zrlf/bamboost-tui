@@ -11,6 +11,7 @@ from bamboost.core.hdf5.attrs_dict import AttrsDict
 from bamboost.core.hdf5.file import HDF5Path
 from bamboost.core.hdf5.ref import Dataset, Group
 from bamboost.core.simulation import Simulation
+from rich.highlighter import ReprHighlighter
 from rich.rule import Rule
 from rich.segment import Segment
 from rich.style import Style
@@ -19,9 +20,8 @@ from rich.text import Text
 from textual import events, on
 from textual.app import ComposeResult, RenderResult
 from textual.binding import Binding
-from textual.containers import Horizontal, Vertical
-from textual.events import Event
-from textual.geometry import Region, Size
+from textual.containers import Container, Horizontal, Vertical, VerticalScroll
+from textual.geometry import Offset, Region, Size
 from textual.message import Message
 from textual.reactive import reactive, var
 from textual.screen import Screen
@@ -70,11 +70,9 @@ class Header(Static, can_focus=False):
         return tab
 
 
-class AttrsView(Widget, can_focus=True):
+class AttrsView(VerticalScroll, can_focus=True):
     DEFAULT_CSS = """
     AttrsView {
-        height: 1fr;
-        width: 1fr;
         background: $background;
         border: round $border;
 
@@ -93,31 +91,35 @@ class AttrsView(Widget, can_focus=True):
         "--key",
         "--value",
     }
-    attrs: reactive[AttrsDict | None] = reactive(None)
+    attrs: var[AttrsDict | None] = var(None)
 
     def __init__(
         self,
-        attrs: AttrsDict | None = None,
+        border_title: str = "",
         *,
         id: str | None = None,
-        border_title: str = "",
     ) -> None:
         super().__init__(id=id)
         self.border_title = border_title
-        self.attrs = attrs
 
-    def render(self) -> RenderResult:
-        if self.attrs is None:
-            return ""
+    def compose(self) -> ComposeResult:
+        yield Static()
 
-        tab = Table.grid("key", "value", padding=(0, 3))
+    def watch_attrs(self, _old: AttrsDict | None, new: AttrsDict | None) -> None:
+        if new is None:
+            return
+
+        tab = Table.grid("key", "value", padding=(0, 2))
         for key, value in self.attrs.items():
+            text = Text(str(value))
+            ReprHighlighter().highlight(text)
             tab.add_row(
                 key,
-                str(value),
+                text,
                 style=self.get_component_rich_style("--key", partial=True),
             )
-        return tab
+        inner_widget = self.query_one(Static)
+        inner_widget.update(tab)
 
 
 @dataclass
@@ -420,6 +422,7 @@ class HDFViewer(Screen):
         self.query_one(Navigation).set_navigation_state(
             NavigationState(0, 0, self._get_group_data(HDF5Path("/")))
         )
+        self.query_one("#current-group-attrs").attrs = self.simulation.root.attrs  # type: ignore[reportAttributeAccessIssue]
 
     def compose(self) -> ComposeResult:
         yield Header(self.simulation.uid, self.simulation.path)
@@ -430,7 +433,6 @@ class HDFViewer(Screen):
                 yield NavigationPreview(self._root, id="nav-preview")
             with Horizontal() as h:
                 yield AttrsView(
-                    self.simulation.root.attrs,
                     id="current-group-attrs",
                     border_title="Current Group Attributes",
                 )
