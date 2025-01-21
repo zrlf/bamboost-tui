@@ -11,25 +11,24 @@ from bamboost.core.hdf5.attrs_dict import AttrsDict
 from bamboost.core.hdf5.file import HDF5Path
 from bamboost.core.hdf5.ref import Dataset, Group
 from bamboost.core.simulation import Simulation
-from rich.padding import Padding
 from rich.rule import Rule
 from rich.segment import Segment
 from rich.style import Style
 from rich.table import Table
 from rich.text import Text
-from sqlalchemy.util.typing import NoneFwd
-from textual import on
+from textual import events, on
 from textual.app import ComposeResult, RenderResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
-from textual.geometry import Offset, Region, Size
+from textual.events import Event
+from textual.geometry import Region, Size
 from textual.message import Message
 from textual.reactive import reactive, var
 from textual.screen import Screen
 from textual.scroll_view import ScrollView
 from textual.strip import Strip
 from textual.widget import Widget
-from textual.widgets import Footer, Placeholder, Static
+from textual.widgets import Footer, Static
 
 
 class Header(Static, can_focus=False):
@@ -57,7 +56,7 @@ class Header(Static, can_focus=False):
         super().__init__(id="nav-header")
 
     def render(self) -> RenderResult:
-        tab = Table.grid("key", "value", padding=(0, 3))
+        tab = Table.grid("key", "value", padding=(0, 2))
         tab.add_row(
             "UID:",
             self.uid,
@@ -78,6 +77,10 @@ class AttrsView(Widget, can_focus=True):
         width: 1fr;
         background: $background;
         border: round $border;
+
+        &:focus-within {
+            border: round $accent;
+        }
     }
     AttrsView > .--key {
         color: $accent;
@@ -93,9 +96,14 @@ class AttrsView(Widget, can_focus=True):
     attrs: reactive[AttrsDict | None] = reactive(None)
 
     def __init__(
-        self, attrs: AttrsDict | None = None, *, id: str | None = None
+        self,
+        attrs: AttrsDict | None = None,
+        *,
+        id: str | None = None,
+        border_title: str = "",
     ) -> None:
         super().__init__(id=id)
+        self.border_title = border_title
         self.attrs = attrs
 
     def render(self) -> RenderResult:
@@ -138,39 +146,74 @@ class NavigationState:
     scroll_offset_y: float = 0
 
 
-class NavigationBase(ScrollView):
+class NavigationStatic(ScrollView, can_focus=False):
     COMPONENT_CLASSES = {
         "--cursor",
         "--group",
         "--dataset",
+        "--hovered",
     }
     DEFAULT_CSS = """
-    NavigationBase {
+    NavigationStatic {
         scrollbar-size-vertical: 0;
+        background: $background;
+        height: 100%;
+
+        & > .--cursor {
+            text-style: reverse bold;
+        }
+        & > .--group {
+            color: $accent;
+        }
+        & > .--dataset {
+            color: $primary;
+        }
+        & > .--hovered {
+            background: $surface;
+        }
     }
     """
     cursor_row: var[int] = var(0)
+    """The row index of the cursor."""
+    _hovered_row: var[int | None] = var(None)
+    """The row index of the hovered item."""
     level: var[int] = var(0)
+    """The depth level of the navigation. If 0, the layout has only one Navigation widget."""
     _group_data: var[GroupData | None] = var(None)  # type: ignore
+    """The group data of the currently shown group."""
 
     @dataclass
     class GroupHighlighted(Message):
-        obj: NavigationBase
+        """Message to indicate that a group has been highlighted."""
+
+        obj: NavigationStatic
         highlighted_path: HDF5Path
 
     @dataclass
     class GroupChanged(Message):
+        """Message to indicate that the group needs to be changed."""
+
         path: HDF5Path
         direction: Literal["up", "down"] = "down"
 
     def render_line(self, y: int) -> Strip:
+        hover_style = (
+            self.get_component_rich_style("--hovered", partial=True)
+            if y == self._hovered_row
+            else Style.null()
+        )
+
         _, scroll_y = self.scroll_offset
         y += scroll_y
 
-        if y == self.cursor_row:
-            cursor = self.get_component_rich_style("--cursor", partial=True)
-        else:
-            cursor = Style.null()
+        cursor = Style.combine(
+            (
+                self.get_component_rich_style("--cursor", partial=True)
+                if y == self.cursor_row
+                else Style.null(),
+                hover_style,
+            )
+        )
 
         group_data = self._group_data
         if group_data is None:
@@ -178,12 +221,14 @@ class NavigationBase(ScrollView):
 
         try:
             item = group_data.groups[y]
-            style = Style.combine((cursor, self.get_component_rich_style("--group")))
+            style = Style.combine(
+                (cursor, self.get_component_rich_style("--group", partial=True))
+            )
         except IndexError:
             try:
                 item = group_data.datasets[y - len(group_data.groups)]
                 style = Style.combine(
-                    (cursor, self.get_component_rich_style("--dataset"))
+                    (cursor, self.get_component_rich_style("--dataset", partial=True))
                 )
             except IndexError:
                 return Strip([])
@@ -194,6 +239,7 @@ class NavigationBase(ScrollView):
         )
 
     def get_navigation_state(self) -> NavigationState:
+        """Get the current navigation state."""
         return NavigationState(
             cursor_row=self.cursor_row,
             level=self.level,
@@ -202,6 +248,11 @@ class NavigationBase(ScrollView):
         )
 
     def set_navigation_state(self, state: NavigationState | None) -> None:
+        """Set the navigation state.
+
+        Args:
+            state: The navigation state to set.
+        """
         if state is None:
             state = NavigationState(0, 0, None)
 
@@ -219,13 +270,19 @@ class NavigationBase(ScrollView):
 
         self.refresh(layout=True)
 
+    def watch__hovered_row(self, old: int | None, new: int | None) -> None:
+        if old is not None:
+            self.refresh_line(old)
+        if new is not None:
+            self.refresh_line(new)
 
-class Navigation(NavigationBase, can_focus=True):
+
+class Navigation(NavigationStatic, can_focus=True):
     BINDINGS = [
         Binding("j,down", "cursor_down"),
         Binding("k,up", "cursor_up"),
-        Binding("l,right", "cursor_right"),
-        Binding("h,left", "cursor_left"),
+        Binding("l,right,enter", "cursor_right"),
+        Binding("h,left,escape", "cursor_left"),
     ]
 
     def action_cursor_down(self) -> None:
@@ -278,21 +335,26 @@ class Navigation(NavigationBase, can_focus=True):
         self._highlight_row(new)
         self.refresh(old_region, new_region)
 
+    def on_mouse_move(self, message: events.MouseMove) -> None:
+        self._hovered_row = message.y
 
-class NavigationStatic(NavigationBase, can_focus=False):
-    def __init__(self, nav: HFive, group: GroupData) -> None:
-        super().__init__()
-        self._nav = nav
-        self._group = group
+    def on_click(self, message: events.Click) -> None:
+        if message.y is None:
+            return
+        self.cursor_row = message.y
 
 
 class NavigationPreview(Static):
+    """The preview widget on the right side to show the content of the highlighted
+    object.
+    """
+
     path: reactive[HDF5Path | None] = reactive(None, layout=True)
 
-    def __init__(self, root_group: Group) -> None:
-        super().__init__()
+    def __init__(self, root_group: Group, **kwargs) -> None:
+        super().__init__(**kwargs)
         self._root = root_group
-        """The root group of the simulation hdf5 file."""
+        """The root bamboost group of the simulation hdf5 file."""
 
     def render(self) -> RenderResult:
         if self.path is None:
@@ -313,38 +375,32 @@ class NavigationPreview(Static):
         )
 
 
-class HFive(Screen):
+class HDFViewer(Screen):
     DEFAULT_CSS = """
-    HFive > Vertical {
+    HDFViewer > Vertical {
         layout: grid;
         grid-rows: 3fr 2fr;
     }
 
-    NavigationBase {
-        background: $background;
-        height: 100%;
+    #nav-container {
+        border: round $border;
 
-        & > .--cursor {
-            text-style: reverse bold;
-        }
-        & > .--group {
-            color: $accent;
-        }
-        & > .--dataset {
-            color: $primary;
+        &:focus-within {
+            border: round $accent;
         }
     }
-    Navigation {
+    #nav-center {
         width: 2fr;
         border-right: vkey $border;
     }
-    NavigationStatic {
+    #nav-static {
         display: none;
         width: 1fr;
         border-right: vkey $border;
     }
-    NavigationPreview {
-        width: 1fr;
+    #nav-preview {
+        width: 2fr;
+        padding: 0 1;
     }
     """
 
@@ -369,16 +425,18 @@ class HFive(Screen):
         yield Header(self.simulation.uid, self.simulation.path)
         with Vertical() as v:
             with Horizontal(id="nav-container"):
-                yield NavigationStatic(self, self._get_group_data(HDF5Path("/")))
-                yield Navigation()
-                yield NavigationPreview(self._root)
+                yield NavigationStatic(id="nav-static")
+                yield Navigation(id="nav-center")
+                yield NavigationPreview(self._root, id="nav-preview")
             with Horizontal() as h:
-                attrs1 = AttrsView(self.simulation.root.attrs, id="current-group-attrs")
-                attrs1.border_title = "Current Group Attributes"
-                attrs2 = AttrsView(id="highlighted-attrs")
-                attrs2.border_title = "Highlighted Group Attributes"
-                yield attrs1
-                yield attrs2
+                yield AttrsView(
+                    self.simulation.root.attrs,
+                    id="current-group-attrs",
+                    border_title="Current Group Attributes",
+                )
+                yield AttrsView(
+                    id="highlighted-attrs", border_title="Highlighted Group Attributes"
+                )
         yield Footer()
 
     @lru_cache(100)
