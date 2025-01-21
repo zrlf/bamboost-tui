@@ -7,7 +7,7 @@ from textual.theme import BUILTIN_THEMES, Theme
 from textual.widgets import HelpPanel
 
 from bamboost_tui.collection_table import ScreenCollection
-from bamboost_tui.hfive import HFive
+from bamboost_tui.hdfview import HDFViewer
 
 ansi_theme = Theme(
     name="ansi",
@@ -55,8 +55,8 @@ class Bamboost(App):
         # This fixes the bug that the screen is empty after resuming the app
         self.app_resume_signal.subscribe(self, lambda *_args, **_kwargs: self.refresh())
 
-        # self.push_screen(ScreenCollection())
-        self.push_screen(HFive("0FD8B0E3BE", "b563f75f23"))
+        self.push_screen(ScreenCollection())
+        # self.push_screen(HDFViewer("0FD8B0E3BE", "b563f75f23"))
 
     def action_toggle_help_panel(self):
         try:
@@ -73,4 +73,4 @@ class Bamboost(App):
 
 
 if __name__ == "__main__":
-    Bamboost(watch_css=True, ansi_color=True).run()
+    Bamboost(watch_css=True, ansi_color=False).run()

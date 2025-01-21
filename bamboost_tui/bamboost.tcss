@@ -4,6 +4,13 @@ AttrsView {
     padding: 0 1;
 }
 
+* {
+    scrollbar-background: $background;
+    scrollbar-color: $surface;
+    scrollbar-color-active: $foreground;
+    scrollbar-color-hover: $panel;
+}
+
 # ---------------------------------------------
 # TOAST
 # ---------------------------------------------

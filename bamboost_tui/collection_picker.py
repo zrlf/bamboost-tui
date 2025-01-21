@@ -8,7 +8,7 @@ from rich.console import Group
 from rich.style import Style as RichStyle
 from rich.table import Column, Table
 from rich.text import Text
-from textual import on, work
+from textual import work
 from textual._context import active_app
 from textual.app import ComposeResult
 from textual.binding import Binding

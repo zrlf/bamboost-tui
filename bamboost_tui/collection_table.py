@@ -30,6 +30,7 @@ from typing_extensions import Self
 from bamboost_tui._datatable import ModifiedDataTable, SortOrder
 from bamboost_tui.collection_picker import CollectionHit, CollectionPicker
 from bamboost_tui.commandline import CommandLine
+from bamboost_tui.hdfview import HDFViewer
 
 if TYPE_CHECKING:
     pass
@@ -271,6 +272,7 @@ class CollectionTable(ModifiedDataTable):
         Binding("G", "cursor_to_end", "move cursor to end"),
         Binding("g>g", "cursor_to_home", "move cursor to home"),
         Binding(":", "enter_command_mode", "enter command mode", show=False),
+        Binding("enter", "select_cursor", "select cursor", show=False),
     ]
     COMPONENT_CLASSES = DataTable.COMPONENT_CLASSES | {
         "datatable--label",
@@ -332,8 +334,12 @@ class CollectionTable(ModifiedDataTable):
         # build columns and rows from dataframe
         for col in self.df.columns:
             self.add_column(str(col), key=str(col))
-        for row in self.df.values:
-            self.add_row(*row)
+        try:
+            names = self.df["name"]
+        except KeyError:
+            names = self.df.index
+        for row, name in zip(self.df.values, names):
+            self.add_row(*row, key=str(name))
 
         self.fixed_columns = 1
         return self
@@ -404,6 +410,7 @@ class CollectionTable(ModifiedDataTable):
             new = Region(new_region.x, new_region.y, self.size.width, new_region.height)
             self._refresh_region(new)
 
+        # TODO: This may be remmoved
         super().watch_cursor_coordinate(old_coordinate, new_coordinate)
 
     # -------------------------------------------------------------------------
@@ -433,7 +440,8 @@ class CollectionTable(ModifiedDataTable):
         self._sort_column_order = sort_order
 
     def action_select_cursor(self):
-        super().action_select_cursor()
+        name = self._row_locations.get_key(self.cursor_row).value
+        self.app.push_screen(HDFViewer(self.uid, name))  # type: ignore
 
     def action_cursor_to_end(self):
         self.cursor_coordinate = Coordinate(

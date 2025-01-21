@@ -45,6 +45,7 @@ from textual.widgets import Footer, Static
 class Header(Static, can_focus=False):
     DEFAULT_CSS = """
     Header {
+        margin: 0 1;
         height: auto;
         width: auto;
     }
@@ -67,7 +68,7 @@ class Header(Static, can_focus=False):
         super().__init__(id="nav-header")
 
     def render(self) -> RenderResult:
-        tab = Table.grid("key", "value", padding=(0, 2))
+        tab = Table.grid("key", "value", padding=(0, 3))
         tab.add_row(
             "UID:",
             self.uid,
@@ -102,6 +103,10 @@ class AttrsView(VerticalScroll, can_focus=True):
         "--key",
         "--value",
     }
+    BINDINGS = [
+        Binding("j,down", "scroll_down", show=False),
+        Binding("k,up", "scroll_up", show=False),
+    ]
     attrs: var[AttrsDict | None] = var(None)
 
     def __init__(
@@ -357,35 +362,41 @@ class Navigation(NavigationStatic, can_focus=True):
         self.cursor_row = message.y
 
 
-class NavigationPreview(Static):
+class NavigationPreview(VerticalScroll, can_focus=False):
     """The preview widget on the right side to show the content of the highlighted
     object.
     """
 
-    path: reactive[HDF5Path | None] = reactive(None, layout=True)
+    # path: reactive[HDF5Path | None] = reactive(None, layout=True)
+    path: var[HDF5Path | None] = var(None)
 
     def __init__(self, root_group: Group, **kwargs) -> None:
         super().__init__(**kwargs)
         self._root = root_group
         """The root bamboost group of the simulation hdf5 file."""
 
-    def render(self) -> RenderResult:
+    def compose(self) -> ComposeResult:
+        yield Static()
+
+    def watch_path(self) -> None:
         if self.path is None:
-            return ""
+            return
 
         obj = self._root[self.path]
         if isinstance(obj, Dataset):
-            return rich.console.Group(
+            renderable = rich.console.Group(
                 Text(str(obj), style="blue"),
                 Rule(style="black"),
                 Text(str(obj[()])),
             )
+        else:
+            renderable = rich.console.Group(
+                Text(str(obj), style="blue"),
+                Rule(style="black"),
+                Text("An HDF5 Group"),
+            )
 
-        return rich.console.Group(
-            Text(str(obj), style="blue"),
-            Rule(style="black"),
-            Text("An HDF5 Group"),
-        )
+        self.query_one(Static).update(renderable)
 
 
 class HDFViewer(Screen):
@@ -401,6 +412,9 @@ class HDFViewer(Screen):
         &:focus-within {
             border: round $accent;
         }
+    }
+    NavigationStatic {
+        margin: 0 1;
     }
     #nav-center {
         width: 2fr;
@@ -418,7 +432,7 @@ class HDFViewer(Screen):
     """
 
     def __init__(self, collection_uid: str, simulation_name: str) -> None:
-        super().__init__("hfive")
+        super().__init__("hdfviewer")
         self.collection_uid = collection_uid
         self.simulation_name = simulation_name
         self.simulation = Simulation.from_uid(
