@@ -1,3 +1,15 @@
+"""The HDF5 viewer screen for bamboost.
+
+This module contains the HDF5 viewer screen for bamboost. It allows you to navigate
+through the HDF5 file of a simulation and view the attributes of groups and datasets.
+
+The screen is divided into three main parts:
+    - The navigation widget, which shows the groups and datasets in the current group, and
+          a small preview window to the right.
+    - The attributes view of the current group.
+    - The attributes view of the highlighted group.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -20,14 +32,13 @@ from rich.text import Text
 from textual import events, on
 from textual.app import ComposeResult, RenderResult
 from textual.binding import Binding
-from textual.containers import Container, Horizontal, Vertical, VerticalScroll
-from textual.geometry import Offset, Region, Size
+from textual.containers import Horizontal, Vertical, VerticalScroll
+from textual.geometry import Region, Size
 from textual.message import Message
 from textual.reactive import reactive, var
 from textual.screen import Screen
 from textual.scroll_view import ScrollView
 from textual.strip import Strip
-from textual.widget import Widget
 from textual.widgets import Footer, Static
 
 
