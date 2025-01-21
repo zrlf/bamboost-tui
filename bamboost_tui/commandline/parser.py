@@ -5,6 +5,7 @@ from argparse import Namespace
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Callable, Iterable, List
 
+from textual.widget import Widget
 from textual.widgets import Input
 from typing_extensions import TypeAlias
 
@@ -53,7 +54,7 @@ CommandList: TypeAlias = List[Command]
 
 
 class Parser:
-    def __init__(self, commands: CommandList, *, target: Input):
+    def __init__(self, commands: CommandList, *, target: Widget):
         self._commands: dict[str, Command] = {cmd.name: cmd for cmd in commands}
         self._target = target
         self._argparse_parser = self._create_argparse_parser(commands)

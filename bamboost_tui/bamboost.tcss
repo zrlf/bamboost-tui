@@ -101,7 +101,7 @@ CommandLine {
 }
 CommandLineInput {
     border: none;
-    padding: 0 1;
+    padding: 0 0;
     background: transparent;
     height: 1;
 }

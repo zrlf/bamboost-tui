@@ -129,6 +129,11 @@ class ScreenCollection(Screen, inherit_bindings=False):
         Binding("q", "close", "close collection", show=False),
     ]
     BINDING_GROUP_TITLE = "Screen commands"
+    DEFAULT_CSS = """
+    ScreenCollection {
+        layers: bottom top;
+    }
+    """
 
     _open_collections: reactive[dict[str, CollectionTable]] = reactive(dict, init=False)
     current_uid: reactive[str | None] = reactive(None, repaint=False)
@@ -228,7 +233,9 @@ class Placeholder(Static):
 
 
 class TableContainer(Container):
-    _widget: reactive[Widget] = reactive(Placeholder, recompose=True)
+    _widget: reactive[CollectionTable | Placeholder] = reactive(
+        Placeholder, recompose=True
+    )
     DEFAULT_CLASSES = "placeholder"
 
     def __init__(self, id: str | None = None):
@@ -282,6 +289,11 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
     HELP = """
     Explore your simulations in this collection. Enter to view the respective HDF file.
     """
+    DEFAULT_CSS = """
+    CollectionTable {
+        layers: bottom top;
+    }
+    """
 
     df: reactive[pd.DataFrame | None] = reactive(None, init=False, always_update=True)
     """The pandas DataFrame from which the table is built."""
@@ -303,6 +315,10 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
 
     async def watch_df(self, _old, _new: pd.DataFrame | None) -> None:
         await self._create_table()
+        if _new is not None:
+            # mount the command line for later use
+            self.screen.remove_children(CommandLine)
+            self.screen.mount(CommandLine(self))
 
     @work(exclusive=True)
     async def _load_data(self):
@@ -335,10 +351,6 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
 
         self.fixed_columns = 1
         return self
-
-    def _create_command_line_for_collection(self):
-        assert self.df is not None
-        self.app.install_screen(CommandLine(collection_table=self), name="command_line")
 
     def watch_cursor_coordinate(
         self, old_coordinate: Coordinate, new_coordinate: Coordinate
@@ -404,8 +416,4 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
         self.cursor_coordinate = Coordinate(0, self.cursor_coordinate.column)
 
     def action_enter_command_mode(self):
-        if "command_line" in self.app._installed_screens:
-            self.app.push_screen("command_line")
-        else:
-            self._create_command_line_for_collection()
-            self.app.push_screen("command_line")
+        self.screen.query_one(CommandLine).action_show()

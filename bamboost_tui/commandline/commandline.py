@@ -4,10 +4,12 @@ import re
 from argparse import Namespace
 from typing import TYPE_CHECKING
 
+from textual import on
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Horizontal
-from textual.screen import ModalScreen
+from textual.containers import Container, Horizontal
+from textual.geometry import Offset
+from textual.widget import Widget
 from textual.widgets import Input, Label
 
 from bamboost_tui.commandline._cmp import (
@@ -20,29 +22,30 @@ if TYPE_CHECKING:
     from bamboost_tui.collection_table import CollectionTable
 
 
-class CommandLine(ModalScreen):
-    BINDINGS = [Binding("escape", "app.pop_screen")]
+class CommandLine(Container):
+    # BINDINGS = [Binding("escape", "app.pop_screen")]
+    BINDINGS = [
+        Binding("escape", "hide"),
+        Binding("enter", "execute", "do this thing"),
+    ]
+    DEFAULT_CSS = """
+    CommandLine {
+        background: transparent;
+        position: absolute;
+        width: 100%;
+        height: 1;
+        offset: 0 0;
+        display: none;
+        layer: top;
+
+        &.-visible {
+            display: block;
+        }
+    }
+    """
 
     def __init__(self, collection_table: "CollectionTable", *_args, **_kwargs):
-        self._table = collection_table
-
         super().__init__(*_args, **_kwargs)
-
-    def compose(self) -> ComposeResult:
-        yield Horizontal(Label(":"), CommandLineInput(self._table), id="command-line")
-        # yield RichLog()
-
-
-class CommandLineInput(Input):
-    _cmp: AutoComplete
-    """The autocomplete component of this input widget."""
-    BINDINGS = [
-        Binding("enter", "execute"),
-        Binding("alt+backspace", "delete_left_word"),
-    ]
-
-    def __init__(self, collection_table: "CollectionTable"):
-        super().__init__(placeholder="command line", id="command-line-input")
 
         self._table = collection_table
         self.df = collection_table.df
@@ -54,18 +57,28 @@ class CommandLineInput(Input):
             ],
             target=self,
         )
+        self._input = CommandLineInput(self.parser)
 
-    def on_mount(self):
-        """Mount the CMP component."""
-        self._cmp = AutoComplete(
-            self,
-            candidates=self.parser.candidates,
-            search_string=self._search_string,
-            completion_strategy=self._complete,
-            prevent_default_enter=False,
-            id="cmp",
-        )
-        self.screen.mount(self._cmp)
+    def compose(self) -> ComposeResult:
+        with Horizontal(id="command-line"):
+            yield Label(":")
+            yield self._input
+
+    def action_hide(self):
+        self.remove_class("-visible")
+        self._table.focus()
+
+    def action_show(self):
+        self.offset = Offset(0, self.screen.size.height - 1)
+        self.add_class("-visible")
+        self.query_one(CommandLineInput).focus()
+
+    @on(Input.Submitted)
+    def _execute(self, message: Input.Submitted) -> None:
+        """Function that will be called when the enter key is pressed."""
+        self.action_hide()
+        self.parser.execute(message.value)
+        self.value = ""
 
     @property
     def command_sort(self) -> Command:
@@ -106,11 +119,29 @@ class CommandLineInput(Input):
             callback=_cb,
         )
 
-    def action_execute(self) -> None:
-        """Function that will be called when the enter key is pressed."""
-        self.parser.execute(self.value)
-        self.value = ""
-        self.app.pop_screen()
+
+class CommandLineInput(Input, can_focus=True):
+    _cmp: AutoComplete
+    """The autocomplete component of this input widget."""
+    BINDINGS = [
+        Binding("alt+backspace", "delete_left_word"),
+    ]
+
+    def __init__(self, parser: Parser):
+        super().__init__(placeholder="command line", id="command-line-input")
+        self.parser = parser
+
+    def on_mount(self):
+        self.screen.mount(
+            AutoComplete(
+                self,
+                candidates=self.parser.candidates,
+                search_string=self._search_string,
+                completion_strategy=self._complete,
+                prevent_default_enter=False,
+                id="cmp",
+            )
+        )
 
     _WHITESPACE_BEFORE = re.compile(r"(?<=\s)\S")
 
