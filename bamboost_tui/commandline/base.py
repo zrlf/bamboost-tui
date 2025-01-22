@@ -29,7 +29,7 @@ from textual.widgets import Input, Label
 from textual.widgets.data_table import ColumnKey
 from typing_extensions import Self
 
-from bamboost_tui.commandline._cmp import (
+from bamboost_tui.widgets import (
     AutoComplete,
     DropdownItem,
     TargetState,

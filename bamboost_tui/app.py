@@ -1,15 +1,12 @@
 from __future__ import annotations
 
-from textual import on
 from textual.app import App
 from textual.binding import Binding
 from textual.css.query import NoMatches
 from textual.theme import BUILTIN_THEMES, Theme
 from textual.widgets import HelpPanel
 
-from bamboost_tui.collection_table import CollectionTable, ScreenCollection
-from bamboost_tui.commandline.base import CommandLine
-from bamboost_tui.hdfview import HDFViewer
+from bamboost_tui.collection_table import ScreenCollection
 
 ansi_theme = Theme(
     name="ansi",
@@ -37,7 +34,7 @@ ansi_theme = Theme(
 )
 
 
-class Bamboost(App):
+class BamboostApp(App):
     CSS_PATH = "bamboost.tcss"
     BINDINGS = [
         Binding("ctrl+c", "quit", "quit", priority=True, show=False),
@@ -61,7 +58,6 @@ class Bamboost(App):
         self.app_resume_signal.subscribe(self, lambda *_args, **_kwargs: self.refresh())
 
         self.push_screen(ScreenCollection())
-        # self.push_screen(HDFViewer("0FD8B0E3BE", "b563f75f23"))
 
     def action_toggle_help_panel(self):
         try:
@@ -78,4 +74,4 @@ class Bamboost(App):
 
 
 if __name__ == "__main__":
-    Bamboost(watch_css=True, ansi_color=False).run()
+    BamboostApp(watch_css=True, ansi_color=False).run()

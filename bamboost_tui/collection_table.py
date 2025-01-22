@@ -23,7 +23,7 @@ from textual.widgets import DataTable, Footer, Static, Tab
 from textual.widgets.data_table import ColumnKey
 from typing_extensions import Self
 
-from bamboost_tui._datatable import ModifiedDataTable, SortOrder
+from bamboost_tui.widgets import ModifiedDataTable, SortOrder
 from bamboost_tui.collection_picker import CollectionHit, CollectionPicker
 from bamboost_tui.commandline import CommandLine, CommandMessage
 from bamboost_tui.hdfview import HDFViewer

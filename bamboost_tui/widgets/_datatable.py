@@ -1,8 +1,17 @@
+"""A subclassed version of the Textual DataTable widget.
+
+This implementation changes the following:
+    - Highlight entire rows instead of individual cells, while keeping the cell cursor.
+    - Highlight column headers when moving the cursor horizontally.
+    - Introduces an indicator for the currently sorted column.
+
+"""
+
 from __future__ import annotations
 
 from enum import Enum
 from itertools import zip_longest
-from typing import Callable, Literal, overload
+from typing import Callable, Literal, cast
 
 from rich.console import RenderableType
 from rich.padding import Padding
@@ -13,11 +22,12 @@ from textual._types import SegmentLines
 from textual.color import Color
 from textual.coordinate import Coordinate
 from textual.renderables.styled import Styled
-from textual.widgets import DataTable
 from textual.widgets._data_table import (
     _EMPTY_TEXT,
+    CellCacheKey,
     ColumnKey,
     CursorType,
+    DataTable,
     RowKey,
     RowRenderables,
     default_cell_formatter,
@@ -128,7 +138,7 @@ class ModifiedDataTable(DataTable):
         header_style = self.get_component_styles("datatable--header").rich_style
 
         if row_key in self._row_locations:
-            row_index = self._row_locations.get(row_key)
+            row_index = cast(int, self._row_locations.get(row_key))
         else:
             row_index = -1
 
@@ -309,7 +319,7 @@ class ModifiedDataTable(DataTable):
             self._show_hover_cursor,
             self._update_count,
             self._pseudo_class_state,
-        )
+        )  # pyright: ignore[reportAssignmentType]
 
         if is_header_cell:
             if cell_cache_key in self._header_cell_render_cache:
@@ -354,7 +364,7 @@ class ModifiedDataTable(DataTable):
         else:
             # If an auto-height row hasn't had its height calculated, we don't fix
             # the value for `height` so that we can measure the height of the cell.
-            row = self.rows[row_key]
+            row = self.rows[row_key]  # pyright: ignore[reportArgumentType]
             if row.auto_height and row.height == 0:
                 row_height = 0
                 options = self.app.console.options.update_width(width)

@@ -1,4 +1,16 @@
-from .app import Bamboost
-
 def main():
-    Bamboost(watch_css=True, ansi_color=True).run()
+    import argparse
+
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--color",
+        "-c",
+        action="store_false",
+        default=True,
+        help="Use full colors instead of terminal colors.",
+    )
+    from .app import BamboostApp
+    args = parser.parse_args()
+
+    BamboostApp(watch_css=True, ansi_color=args.color).run()
