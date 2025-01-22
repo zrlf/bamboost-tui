@@ -16,7 +16,7 @@ from textual.color import Color
 from textual.containers import Center, Container, Horizontal, Right
 from textual.coordinate import Coordinate
 from textual.geometry import Offset, Region
-from textual.reactive import reactive
+from textual.reactive import reactive, var
 from textual.screen import Screen
 from textual.widget import Widget
 from textual.widgets import DataTable, Footer, Static, Tab
@@ -26,6 +26,7 @@ from typing_extensions import Self
 from bamboost_tui._datatable import ModifiedDataTable, SortOrder
 from bamboost_tui.collection_picker import CollectionHit, CollectionPicker
 from bamboost_tui.commandline import CommandLine
+from bamboost_tui.commandline.parser import Argument, Command, Option, Parser
 from bamboost_tui.hdfview import HDFViewer
 from bamboost_tui.utils import KeySubgroupsMixin
 
@@ -122,90 +123,6 @@ class OpenCollectionsTabs(Widget):
         yield from (Tab(key, id=f"tab-{key}") for key in self.tabs)
 
 
-class ScreenCollection(Screen, inherit_bindings=False):
-    BINDINGS = [
-        Binding("ctrl+m", "toggle_picker", "toggle the collection picker"),
-        Binding("ctrl+t", "cycle_tabs", "cycle through tabs", show=False),
-        Binding("q", "close", "close collection", show=False),
-    ]
-    BINDING_GROUP_TITLE = "Screen commands"
-    DEFAULT_CSS = """
-    ScreenCollection {
-        layers: bottom top;
-    }
-    """
-
-    _open_collections: reactive[dict[str, CollectionTable]] = reactive(dict, init=False)
-    current_uid: reactive[str | None] = reactive(None, repaint=False)
-
-    def __init__(self, uid: str | None = None) -> None:
-        super().__init__(uid)
-        self.set_reactive(ScreenCollection.current_uid, uid)
-        self._table_container = TableContainer(id="table-container")
-        """The container holding the table widget."""
-        self._tabs = OpenCollectionsTabs()
-        """The container holding the tabs in the header."""
-
-    def compose(self) -> ComposeResult:
-        with Horizontal(id="header"):
-            yield Header()
-            with Right():
-                yield self._tabs
-        yield self._table_container
-        yield Footer()
-
-    def action_toggle_picker(self):
-        self.app.push_screen(CollectionPicker())
-
-    @work(exclusive=True)
-    async def action_cycle_tabs(self):
-        if self.current_uid is None:
-            return
-        uid_list = list(self._open_collections.keys())
-        start = uid_list.index(str(self.current_uid))
-        uid_cycler_start_from_current = cycle(
-            (i for i in chain(uid_list[start + 1 :], uid_list[: start + 1]))
-        )
-        # from the location of the current_uid, get the next tab, if at end, cycle to
-        # start
-        if next_tab := next(uid_cycler_start_from_current, None):
-            self.current_uid = next_tab
-
-    def action_close(self):
-        uid = self.current_uid
-        if uid is None:
-            self.app.exit()
-            return
-        if self.query(CollectionTable):
-            self._open_collections.pop(uid, None)
-            if not self._open_collections:
-                self.current_uid = None
-                self._table_container._widget = Placeholder()
-            else:
-                self.current_uid = next(iter(self._open_collections.keys()))
-        else:
-            self.app.exit()
-
-    def watch_current_uid(self, _old, new: str | None) -> None:
-        if new is None:
-            self._table_container._widget = Placeholder()
-            return
-        try:
-            self._table_container._widget = self._open_collections[new]
-        except KeyError:
-            new_table = CollectionTable(new)
-            self._open_collections[new] = new_table
-            self._table_container._widget = new_table
-
-    @on(CollectionHit.CollectionSelected)
-    def _open_collection(self, message: CollectionHit.CollectionSelected) -> None:
-        self.current_uid = message.uid
-
-    @on(Tab.Clicked)
-    def _on_tab_clicked(self, message: Tab.Clicked) -> None:
-        self.current_uid = message.tab.label_text
-
-
 class Placeholder(Static):
     def compose(self) -> ComposeResult:
         with Center():
@@ -251,6 +168,9 @@ class TableContainer(Container):
     def compose(self) -> ComposeResult:
         yield self._widget
 
+    def focus(self, scroll_visible: bool = True) -> CollectionTable | Placeholder:
+        return self._widget.focus(scroll_visible)
+
 
 REPR_HIGHLIGHTER = ReprHighlighter()
 
@@ -277,10 +197,11 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
         Binding("s", "sort_column", "sort column"),
         Binding("G", "cursor_to_end", "move cursor to end", show=False),
         Binding("g>g", "cursor_to_home", "move cursor to start", show=False),
-        Binding(":", "enter_command_mode", "enter command mode", show=True),
         Binding("enter", "select_cursor", "show simulation", show=False),
         Binding("ctrl+d,pagedown", "page_down", "scroll page down", show=False),
         Binding("ctrl+u,pageup", "page_up", "scroll page up", show=False),
+        Binding(":", "enter_command_mode", "enter command mode", show=True),
+        Binding("/", "enter_jump_to", "jump to column", show=True),
     ]
     BINDING_GROUP_TITLE = "Collection commands"
     COMPONENT_CLASSES = DataTable.COMPONENT_CLASSES | {
@@ -295,7 +216,7 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
     }
     """
 
-    df: reactive[pd.DataFrame | None] = reactive(None, init=False, always_update=True)
+    df: var[pd.DataFrame | None] = var(None, init=False, always_update=True)
     """The pandas DataFrame from which the table is built."""
 
     def __init__(self, uid: str):
@@ -311,14 +232,16 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
         self.uid: str = uid
         """The collection uid to display."""
 
+        self.command_parser: Parser | None = None
+        """The parser for the command line."""
+
         self._create_subgroup_mapping()
 
-    async def watch_df(self, _old, _new: pd.DataFrame | None) -> None:
-        await self._create_table()
-        if _new is not None:
-            # mount the command line for later use
-            self.screen.remove_children(CommandLine)
-            self.screen.mount(CommandLine(self))
+    def on_mount(self):
+        if self.df is None:
+            self.loading = True
+            self._load_data()
+        self.focus()
 
     @work(exclusive=True)
     async def _load_data(self):
@@ -329,11 +252,39 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
         self.loading = False
         self.focus()
 
-    def on_mount(self):
-        if self.df is None:
-            self.loading = True
-            self._load_data()
-        self.focus()
+    def _get_command_parser(self, df: pd.DataFrame) -> Parser:
+        return Parser(
+            Command(
+                "sort",
+                [Argument("column_key", choices=df.columns)],
+                options={
+                    "--reverse": Option("reverse", bool_flag=True, aliases=["-r"])
+                },
+                callback=lambda args: self.action_sort_column(
+                    args.column_key, args.reverse
+                ),
+            ),
+            Command(
+                "go_to",
+                [Argument("column_key", choices=df.columns)],
+                callback=lambda args: self.move_cursor(
+                    column=self.get_column_index(args.column_key)
+                ),
+            ),
+            Command(
+                "filter",
+                [Argument("column_key", choices=df.columns)],
+            ),
+        )
+
+    async def watch_df(self, _old, _new: pd.DataFrame | None) -> None:
+        if _new is None:
+            return
+
+        self.command_parser = self._get_command_parser(_new)
+
+        await self._create_table()
+        self.refresh(layout=True)
 
     async def _create_table(self) -> Self:
         # clear the current table
@@ -416,4 +367,97 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
         self.cursor_coordinate = Coordinate(0, self.cursor_coordinate.column)
 
     def action_enter_command_mode(self):
-        self.screen.query_one(CommandLine).action_show()
+        self.app.push_screen(CommandLine(self.command_parser))
+
+    def action_enter_jump_to(self):
+        self.app.push_screen(
+            CommandLine(self.command_parser.set_prefix("go_to"), "/")
+        )
+
+
+class ScreenCollection(Screen, inherit_bindings=False):
+    BINDINGS = [
+        Binding("ctrl+m", "toggle_picker", "toggle the collection picker"),
+        Binding("ctrl+t", "cycle_tabs", "cycle through tabs", show=False),
+        Binding("q", "close", "close collection", show=False),
+    ]
+    BINDING_GROUP_TITLE = "Screen commands"
+    DEFAULT_CSS = """
+    ScreenCollection {
+        layers: bottom top;
+    }
+    """
+
+    _open_collections: dict[str, CollectionTable]
+    current_uid: var[str | None] = var(None)
+    current_widget: CollectionTable | Placeholder
+
+    def __init__(self, uid: str | None = None) -> None:
+        super().__init__(uid)
+        self.set_reactive(ScreenCollection.current_uid, uid)
+        self._table_container = TableContainer(id="table-container")
+        """The container holding the table widget."""
+        self._tabs = OpenCollectionsTabs()
+        """The container holding the tabs in the header."""
+        self._open_collections = {}
+
+    def compose(self) -> ComposeResult:
+        with Horizontal(id="header"):
+            yield Header()
+            with Right():
+                yield self._tabs
+        yield self._table_container
+        yield Footer()
+
+    def watch_current_uid(self, _old, new: str | None) -> None:
+        if new is None:
+            self._table_container._widget = Placeholder()
+            return
+        try:
+            self._table_container._widget = self._open_collections[new]
+        except KeyError:
+            new_table = CollectionTable(new)
+            self._open_collections[new] = new_table
+            self._table_container._widget = new_table
+
+    def action_toggle_picker(self):
+        self.app.push_screen(CollectionPicker())
+
+    @work(exclusive=True)
+    async def action_cycle_tabs(self):
+        if self.current_uid is None:
+            return
+        uid_list = list(self._open_collections.keys())
+        start = uid_list.index(str(self.current_uid))
+        uid_cycler_start_from_current = cycle(
+            (i for i in chain(uid_list[start + 1 :], uid_list[: start + 1]))
+        )
+        # from the location of the current_uid, get the next tab, if at end, cycle to
+        # start
+        if next_tab := next(uid_cycler_start_from_current, None):
+            self.current_uid = next_tab
+
+    def action_close(self):
+        uid = self.current_uid
+        if uid is None:
+            self.app.exit()
+            return
+        _open_collections = self._open_collections
+        if _open_collections:
+            collection = _open_collections.pop(uid)
+            self.remove_children(f"#{collection.id}")
+            if not _open_collections:
+                self.current_uid = None
+                self._table_container._widget = Placeholder()
+            else:
+                self.current_uid = next(iter(self._open_collections.keys()))
+        else:
+            self.app.exit()
+
+    @on(CollectionHit.CollectionSelected)
+    def _open_collection(self, message: CollectionHit.CollectionSelected) -> None:
+        self.current_uid = message.uid
+
+    @on(Tab.Clicked)
+    def _on_tab_clicked(self, message: Tab.Clicked) -> None:
+        self.current_uid = message.tab.label_text

@@ -229,7 +229,7 @@ class DropdownItem(Option):
         left = self.left_meta
         prompt = self.main
         if left:
-            prompt = Padding(Text.assemble(left, " ", self.main), pad=(0, 1))
+            prompt = Padding(Text.assemble(left, "  ", self.main), pad=(0, 1))
         # if self.right_meta:
         #     prompt = Text.assemble(prompt, " ", self.right_meta)
 
@@ -237,6 +237,12 @@ class DropdownItem(Option):
 
 
 class AutoCompleteList(OptionList):
+    DEFAULT_CSS = """
+    AutoCompleteList {
+        max-height: 20;
+    }
+    """
+
     def get_content_width(
         self, container: events.Resize, viewport: events.Resize
     ) -> int:
@@ -277,6 +283,7 @@ class AutoComplete(Widget):
     ]
     DEFAULT_CSS = """\
     AutoComplete {
+        position: absolute;
         layer: textual-autocomplete;
         height: auto;
         width: auto;
@@ -335,7 +342,6 @@ class AutoComplete(Widget):
     ) -> None:
         super().__init__(name=name, id=id, classes=classes, disabled=disabled)
 
-        self.absolute_offset = Offset(0, 0)
         self._position: Literal["top", "bottom"] = position
 
         self._target = target
@@ -567,7 +573,7 @@ class AutoComplete(Widget):
             cursor_y + 1,
             width,
             height,
-        ).constrain("inside", "none", Spacing.all(2), self.screen.region)
+        ).constrain("inside", "none", Spacing.all(0), self.screen.region)
         self.styles.offset = self._get_necessary_offset(x, y, _width, _height)
 
     def _get_necessary_offset(self, x, y, width, height) -> tuple[int, int]:
@@ -607,7 +613,8 @@ class AutoComplete(Widget):
         # target widget (e.g. typing in a character in the Input).
         matches = self._compute_matches(self._target_state, search_string)
         # first align, then rebuild the optionlist
-        self._align_to_target(len(matches), 0)
+        height = min(len(matches), self.option_list.styles.max_height.value)  # pyright: ignore[reportArgumentType]
+        self._align_to_target(height, 0)  # pyright: ignore[reportArgumentType]
         self._rebuild_options(matches)
 
         if self.should_show_dropdown(search_string):
@@ -638,7 +645,7 @@ class AutoComplete(Widget):
         option_list = self.option_list
         option_count = option_list.option_count
 
-        if len(search_string) == 0 or option_count == 0:
+        if option_count == 0:
             return False
         elif option_count == 1:
             first_option = option_list.get_option_at_index(0).prompt

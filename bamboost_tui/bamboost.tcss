@@ -10,6 +10,9 @@ $background-cp: transparent;
 # ---------------------------------------------
 # TOAST
 # ---------------------------------------------
+Toast {
+    background: $surface;
+}
 Rule {
     margin: 0;
     color: $foreground;
@@ -95,8 +98,10 @@ BindingsTable > .bindings-table--header {
 # ---------------------------------------------
 CommandLine {
     align: left bottom;
+    background: transparent;
 }
 #command-line {
+    background: transparent;
     height: 1;
 }
 CommandLineInput {
@@ -104,6 +109,9 @@ CommandLineInput {
     padding: 0 0;
     background: transparent;
     height: 1;
+    width: 100%;
+}
+AutoComplete {
 }
 AutoCompleteList {
     background: $background;
@@ -111,22 +119,16 @@ AutoCompleteList {
     margin: 0;
     scrollbar-size-vertical: 1;
     scrollbar-size-horizontal: 0;
+    max-height: 12;
+
     &:focus {
         border: none;
         padding: 0;
         margin: 0;
     }
     & > .option-list--option-highlighted, & > .option-list--option-hover-highlighted {
-        background: $accent;
-        color: black;
+        background: $surface;
         text-style: bold;
-    }
-    .autocomplete--highlight-match {
-        background: $accent;
-        color: ansi_black;
-    }
-    .autocomplete--selection-cursor {
-        background: ansi_blue;
     }
 }
 

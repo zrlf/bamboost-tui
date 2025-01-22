@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, Callable, Iterable, List
 
 from textual.widget import Widget
 from textual.widgets import Input
-from typing_extensions import TypeAlias
+from typing_extensions import Self, TypeAlias
 
 from bamboost_tui.commandline._cmp import (
     DropdownItem,
@@ -49,18 +49,22 @@ class Command:
     """Any arguments to pass to argparse for this command/argument."""
 
 
-CommandList: TypeAlias = List[Command]
+CommandList: TypeAlias = Iterable[Command]
 """A list of commands."""
 
 
 class Parser:
-    def __init__(self, commands: CommandList, *, target: Widget):
+    def __init__(self, *commands: Command, prefix: str = ""):
+        self._commands_raw = commands
         self._commands: dict[str, Command] = {cmd.name: cmd for cmd in commands}
-        self._target = target
         self._argparse_parser = self._create_argparse_parser(commands)
+        self._prefix = prefix
+
+    def set_prefix(self, prefix: str) -> Parser:
+        return Parser(*self._commands_raw, prefix=prefix)
 
     def candidates(self, state: TargetState) -> list[DropdownItem]:
-        text = state.text
+        text = f"{self._prefix} {state.text}"
         main_command_list = [
             DropdownItem(cmd, "function", "func") for cmd in self._commands.keys()
         ]
@@ -72,7 +76,10 @@ class Parser:
         else:
             tokens = state.text.split()[:-1]
 
-        return self._get_current_options(tokens) or main_command_list
+        if (res := self._get_current_options(tokens)) is not None:
+            return res
+        else:
+            return main_command_list
 
     def _get_current_options(self, tokens: list[str]) -> list[DropdownItem] | None:
         if not tokens:
@@ -80,7 +87,7 @@ class Parser:
 
         command_token, last_token = tokens[0], tokens[-1]
         if command_token not in self._commands:
-            return None
+            return []
 
         command = self._commands[command_token]
         consumed_options = set()  # the options that have been consumed before
@@ -120,11 +127,14 @@ class Parser:
         return options
 
     def execute(self, text: str) -> None:
+        text = self._prefix + " " + text
         try:
             args = self.parse(text.split())
             self._commands[args.command].callback(args)
         except Exception as e:
-            self._target.notify(f"Invalid command: {e}", severity="error")
+            from textual._context import active_app
+
+            active_app.get().notify(f"Invalid command: {e}", severity="error")
 
     def parse(self, args: list[str]) -> Namespace:
         parser = self._argparse_parser

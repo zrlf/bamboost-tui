@@ -1,147 +1,95 @@
 from __future__ import annotations
 
 import re
-from argparse import Namespace
-from typing import TYPE_CHECKING
 
 from textual import on
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Container, Horizontal
-from textual.geometry import Offset
-from textual.widget import Widget
+from textual.containers import Horizontal
+from textual.message import Message
+from textual.screen import Screen
 from textual.widgets import Input, Label
 
 from bamboost_tui.commandline._cmp import (
     AutoComplete,
     TargetState,
 )
-from bamboost_tui.commandline.parser import Argument, Command, Option, Parser
-
-if TYPE_CHECKING:
-    from bamboost_tui.collection_table import CollectionTable
+from bamboost_tui.commandline.parser import Parser
 
 
-class CommandLine(Container):
-    # BINDINGS = [Binding("escape", "app.pop_screen")]
+class CommandLine(Screen):
     BINDINGS = [
-        Binding("escape", "hide"),
+        Binding("escape", "dismiss"),
         Binding("enter", "execute", "do this thing"),
     ]
     DEFAULT_CSS = """
     CommandLine {
         background: transparent;
-        position: absolute;
-        width: 100%;
-        height: 1;
-        offset: 0 0;
-        display: none;
-        layer: top;
 
-        &.-visible {
-            display: block;
+        & > Horizontal {
+            width: 100%;
+            height: 1;
+            background: $surface;
         }
     }
     """
 
-    def __init__(self, collection_table: "CollectionTable", *_args, **_kwargs):
+    def __init__(self, parser: Parser | None, label: str = ":", *_args, **_kwargs):
         super().__init__(*_args, **_kwargs)
-
-        self._table = collection_table
-        self.df = collection_table.df
-        self.parser = Parser(
-            [
-                self.command_sort,
-                self.command_go_to,
-                self.command_filter,
-            ],
-            target=self,
-        )
-        self._input = CommandLineInput(self.parser)
+        self.label = label
+        self.display = False
+        self.parser: Parser | None = parser
+        self.has_parser = bool(parser)
 
     def compose(self) -> ComposeResult:
         with Horizontal(id="command-line"):
-            yield Label(":")
-            yield self._input
-
-    def action_hide(self):
-        self.remove_class("-visible")
-        self._table.focus()
+            yield Label(self.label)
+            yield CommandLineInput(parser=self.parser)
 
     def action_show(self):
-        self.offset = Offset(0, self.screen.size.height - 1)
-        self.add_class("-visible")
         self.query_one(CommandLineInput).focus()
 
     @on(Input.Submitted)
-    def _execute(self, message: Input.Submitted) -> None:
+    def _input_submitted(self, message: Input.Submitted) -> None:
         """Function that will be called when the enter key is pressed."""
-        self.action_hide()
+        self.dismiss()
         self.parser.execute(message.value)
-        self.value = ""
-
-    @property
-    def command_sort(self) -> Command:
-        def _cb(args: Namespace):
-            self._table.action_sort_column(args.column_key, reverse=args.reverse)
-
-        return Command(
-            "sort",
-            [Argument("column_key", choices=self.df.columns)],
-            options={
-                "--reverse": Option("reverse", bool_flag=True, aliases=["-r"]),
-            },
-            callback=_cb,
-        )
-
-    @property
-    def command_go_to(self) -> Command:
-        def _cb(args: Namespace):
-            self._table.move_cursor(
-                column=self._table.get_column_index(args.column_key)
-            )
-
-        return Command(
-            "go_to",
-            [Argument("column_key", choices=self.df.columns)],
-            callback=_cb,
-        )
-
-    @property
-    def command_filter(self) -> Command:
-        def _cb(args: Namespace):
-            # self._table.filter(args.column_key)
-            pass
-
-        return Command(
-            "filter",
-            [Argument("column_key", choices=self.df.columns)],
-            callback=_cb,
-        )
 
 
 class CommandLineInput(Input, can_focus=True):
-    _cmp: AutoComplete
     """The autocomplete component of this input widget."""
+
+    DEFAULT_CSS = """
+    CommandLineInput {
+    }
+    """
     BINDINGS = [
         Binding("alt+backspace", "delete_left_word"),
     ]
+    cmp: AutoComplete | None
+    parser: Parser | None
 
-    def __init__(self, parser: Parser):
+    def __init__(self, parser: Parser | None = None):
         super().__init__(placeholder="command line", id="command-line-input")
         self.parser = parser
 
-    def on_mount(self):
-        self.screen.mount(
-            AutoComplete(
-                self,
-                candidates=self.parser.candidates,
-                search_string=self._search_string,
-                completion_strategy=self._complete,
-                prevent_default_enter=False,
-                id="cmp",
-            )
+    async def action_submit(self) -> None:
+        await super().action_submit()
+        self.clear()
+
+    def on_mount(self) -> None:
+        self.cmp = AutoComplete(
+            self,
+            candidates=self.parser.candidates if self.parser else [],
+            search_string=self._search_string,
+            completion_strategy=self._complete,
+            prevent_default_enter=False,
         )
+        self.screen.mount(self.cmp)
+
+    def _on_unmount(self) -> None:
+        self.cmp.remove()
+        super()._on_unmount()
 
     _WHITESPACE_BEFORE = re.compile(r"(?<=\s)\S")
 
