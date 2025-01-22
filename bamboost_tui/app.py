@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+from textual import on
 from textual.app import App
 from textual.binding import Binding
 from textual.css.query import NoMatches
 from textual.theme import BUILTIN_THEMES, Theme
 from textual.widgets import HelpPanel
 
-from bamboost_tui.collection_table import ScreenCollection
+from bamboost_tui.collection_table import CollectionTable, ScreenCollection
+from bamboost_tui.commandline.base import CommandLine
 from bamboost_tui.hdfview import HDFViewer
 
 ansi_theme = Theme(

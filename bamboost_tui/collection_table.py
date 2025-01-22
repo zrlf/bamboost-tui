@@ -25,8 +25,7 @@ from typing_extensions import Self
 
 from bamboost_tui._datatable import ModifiedDataTable, SortOrder
 from bamboost_tui.collection_picker import CollectionHit, CollectionPicker
-from bamboost_tui.commandline import CommandLine
-from bamboost_tui.commandline.parser import Argument, Command, Option, Parser
+from bamboost_tui.commandline import CommandLine, CommandMessage
 from bamboost_tui.hdfview import HDFViewer
 from bamboost_tui.utils import KeySubgroupsMixin
 
@@ -200,8 +199,8 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
         Binding("enter", "select_cursor", "show simulation", show=False),
         Binding("ctrl+d,pagedown", "page_down", "scroll page down", show=False),
         Binding("ctrl+u,pageup", "page_up", "scroll page up", show=False),
-        Binding(":", "enter_command_mode", "enter command mode", show=True),
-        Binding("/", "enter_jump_to", "jump to column", show=True),
+        Binding(":", "command_line", "enter command mode", show=True),
+        Binding("/", 'command_line("goto", "")', "jump to column", show=True),
     ]
     BINDING_GROUP_TITLE = "Collection commands"
     COMPONENT_CLASSES = DataTable.COMPONENT_CLASSES | {
@@ -232,9 +231,6 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
         self.uid: str = uid
         """The collection uid to display."""
 
-        self.command_parser: Parser | None = None
-        """The parser for the command line."""
-
         self._create_subgroup_mapping()
 
     def on_mount(self):
@@ -252,36 +248,9 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
         self.loading = False
         self.focus()
 
-    def _get_command_parser(self, df: pd.DataFrame) -> Parser:
-        return Parser(
-            Command(
-                "sort",
-                [Argument("column_key", choices=df.columns)],
-                options={
-                    "--reverse": Option("reverse", bool_flag=True, aliases=["-r"])
-                },
-                callback=lambda args: self.action_sort_column(
-                    args.column_key, args.reverse
-                ),
-            ),
-            Command(
-                "go_to",
-                [Argument("column_key", choices=df.columns)],
-                callback=lambda args: self.move_cursor(
-                    column=self.get_column_index(args.column_key)
-                ),
-            ),
-            Command(
-                "filter",
-                [Argument("column_key", choices=df.columns)],
-            ),
-        )
-
     async def watch_df(self, _old, _new: pd.DataFrame | None) -> None:
         if _new is None:
             return
-
-        self.command_parser = self._get_command_parser(_new)
 
         await self._create_table()
         self.refresh(layout=True)
@@ -366,13 +335,16 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
     def action_cursor_to_home(self):
         self.cursor_coordinate = Coordinate(0, self.cursor_coordinate.column)
 
-    def action_enter_command_mode(self):
-        self.app.push_screen(CommandLine(self.command_parser))
-
-    def action_enter_jump_to(self):
-        self.app.push_screen(
-            CommandLine(self.command_parser.set_prefix("go_to"), "/")
+    @work
+    async def action_command_line(self, prefix: str = "", label: str = ":"):
+        cmd: CommandMessage = await self.app.push_screen_wait(
+            CommandLine(self, prefix=prefix, label=label)
         )
+        self._handle_command(cmd)
+
+    def _handle_command(self, cmd: CommandMessage):
+        if isinstance(cmd, CommandLine.GoTo):
+            self.move_cursor(column=self._column_locations.get(cmd.column_key))
 
 
 class ScreenCollection(Screen, inherit_bindings=False):

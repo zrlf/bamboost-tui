@@ -99,10 +99,10 @@ BindingsTable > .bindings-table--header {
 CommandLine {
     align: left bottom;
     background: transparent;
-}
-#command-line {
-    background: transparent;
-    height: 1;
+
+    & > Horizontal > Label {
+        margin: 0 1;
+    }
 }
 CommandLineInput {
     border: none;
@@ -264,7 +264,7 @@ HDFViewer {
         }
     }
     #nav-container {
-        border: round $panel;
+        border: round $surface;
 
         &:focus-within {
             border: round $border;

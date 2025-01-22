@@ -480,6 +480,10 @@ class AutoComplete(Widget):
         if self.display:
             self.action_hide()
         else:
+            height = min(
+                self.option_list.option_count, self.option_list.styles.max_height.value
+            )
+            self._align_to_target(height, 0)  # pyright: ignore[reportArgumentType]
             self.action_show()
 
     def _complete(self, option_index: int) -> None:
