@@ -1,6 +1,6 @@
 $background-cp: transparent;
 
-Screen {
+* {
     scrollbar-background: $background;
     scrollbar-color: $surface;
     scrollbar-color-active: $foreground;
@@ -29,6 +29,9 @@ HelpPanel {
     height: 100%;
     padding: 0 0;
     padding-right: 0;
+    * {
+        scrollbar-size-vertical: 1;
+    }
 
     &:ansi {
         background: ansi_default;
@@ -80,6 +83,11 @@ HelpPanel {
         split: initial;
         border-left: none;          
         padding: 0;
+        scrollbar-size-vertical: 1;
+        scrollbar-background: $background;
+        scrollbar-color: $surface;
+        scrollbar-color-active: $foreground;
+        scrollbar-color-hover: $panel;
     }
 }
 BindingsTable > .bindings-table--divider {
@@ -146,7 +154,7 @@ LoadingIndicator {
 # ---------------------------------------------
 CollectionTable {
     background: $background;
-    scrollbar-size: 0 0;
+    scrollbar-size: 0 1;
 
     &:focus {
         background: transparent;
@@ -249,10 +257,10 @@ HDFViewer {
     }
 
     & AttrsView {
-        border: round $surface;
         padding: 0 1;
         background: $background;
         border: round $surface;
+        border-title-color: $border;
 
         &:focus-within {
             border: round $border;
@@ -271,53 +279,50 @@ HDFViewer {
         &:focus-within {
             border: round $border;
         }
+
+        NavigationStatic {
+            scrollbar-size-vertical: 0;
+
+            & > .--cursor {
+                text-style: reverse bold;
+                background: $surface;
+            }
+            & > .--group {
+                color: $primary;
+            }
+            & > .--dataset {
+                color: $accent;
+            }
+            & > .--hovered {
+                background: $surface;
+            }
+        }
+
+        #nav-center {
+            width: 2fr;
+            border-right: vkey $surface;
+        }
+        #nav-static {
+            display: none;
+            width: 1fr;
+            border-right: vkey $surface 50%;
+        }
+        #nav-preview {
+            width: 2fr;
+            padding: 0 1;
+
+            & > .--object {
+                color: $accent;
+            }
+            & > .--rule {
+                color: $surface;
+            }
+            & > .--content {
+                color: $foreground 80%;
+            }
+        }
     }
 
-    NavigationStatic {
-        scrollbar-size-vertical: 0;
-
-        & > .--cursor {
-            text-style: reverse bold;
-            background: $surface;
-        }
-        & > .--group {
-            color: $primary;
-        }
-        & > .--dataset {
-            color: $accent;
-        }
-        & > .--hovered {
-            background: $surface;
-        }
-    }
-
-    #nav-center {
-        width: 2fr;
-        border-right: vkey $panel;
-
-        &:focus-within {
-            border-right: vkey $border;
-        }
-    }
-    #nav-static {
-        display: none;
-        width: 1fr;
-        border-right: vkey $border;
-    }
-    #nav-preview {
-        width: 2fr;
-        padding: 0 1;
-
-        & > .--object {
-            color: $accent;
-        }
-        & > .--rule {
-            color: $surface;
-        }
-        & > .--content {
-            color: $foreground 80%;
-        }
-    }
 
 }
 
