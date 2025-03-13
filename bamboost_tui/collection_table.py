@@ -5,8 +5,7 @@ from itertools import chain, cycle
 from textwrap import dedent
 from typing import TYPE_CHECKING
 
-import pandas as pd
-from bamboost.index import DEFAULT_INDEX
+from bamboost.index import Index
 from rich.highlighter import ReprHighlighter
 from rich.table import Table
 from rich.text import Text
@@ -23,13 +22,14 @@ from textual.widgets import DataTable, Footer, Static, Tab
 from textual.widgets.data_table import ColumnKey
 from typing_extensions import Self
 
-from bamboost_tui.widgets import ModifiedDataTable, SortOrder
 from bamboost_tui.collection_picker import CollectionHit, CollectionPicker
 from bamboost_tui.commandline import CommandLine, CommandMessage
 from bamboost_tui.hdfview import HDFViewer
 from bamboost_tui.utils import KeySubgroupsMixin
+from bamboost_tui.widgets import ModifiedDataTable, SortOrder
 
 if TYPE_CHECKING:
+    import pandas as pd
     from textual.app import ComposeResult, RenderResult
 
 
@@ -67,7 +67,7 @@ class Header(Widget, can_focus=False):
         return tab
 
     def _get_path(self, uid: str | None) -> str:
-        found_path = DEFAULT_INDEX._get_collection_path(uid) if uid else None
+        found_path = Index.default._get_collection_path(uid) if uid else None
         return found_path.as_posix() if found_path else "[Collection location found]"
 
     def on_mount(self):
@@ -241,7 +241,9 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
 
     @work(exclusive=True)
     async def _load_data(self):
-        sims = DEFAULT_INDEX.collection(self.uid).simulations
+        import pandas as pd
+
+        sims = Index.default.collection(self.uid).simulations
         tab = [i.as_dict(standalone=False) for i in sims]
         self.df = pd.DataFrame.from_records(tab)
         """The DataFrame that holds the data for the table."""
@@ -344,7 +346,9 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
 
     def _handle_command(self, cmd: CommandMessage):
         if isinstance(cmd, CommandLine.GoTo):
-            self.move_cursor(column=self._column_locations.get(cmd.column_key))
+            return self.move_cursor(column=self._column_locations.get(cmd.column_key))
+        if isinstance(cmd, CommandLine.Sort):
+            return self.action_sort_column(cmd.column_key, cmd.reverse)
 
 
 class ScreenCollection(Screen, inherit_bindings=False):

@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import re
 from argparse import Namespace
-from dataclasses import dataclass, field
+from dataclasses import field
 from functools import partial
 from itertools import chain
 from typing import (
@@ -19,7 +19,6 @@ from typing import (
 )
 
 from textual import on
-from textual._context import active_app
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal
@@ -38,9 +37,8 @@ from bamboost_tui.widgets import (
 if TYPE_CHECKING:
     from bamboost_tui.collection_table import CollectionTable
 
-ChoicesType = Union[Iterable[str], Callable[["CommandLine"], Iterable[str]], None]
-ChoicesResolvedType = Iterable[str]
-
+    ChoicesType = Union[Iterable[str], Callable[["CommandLine"], Iterable[str]], None]
+    ChoicesResolvedType = Iterable[str]
 
 T = TypeVar("T")
 
@@ -135,8 +133,9 @@ class CommandMessage(Message):
 
     def set_parsed_values(self, args: Namespace) -> Self:
         for arg in chain(self._arguments, self._options.values()):
-            # arg.set_value(getattr(args, arg.name))
-            setattr(self, arg.name, getattr(args, arg.name))
+            # strip any leading dashes from the argument name
+            arg_name = arg.name.lstrip("-")
+            setattr(self, arg_name, getattr(args, arg_name))
         return self
 
 

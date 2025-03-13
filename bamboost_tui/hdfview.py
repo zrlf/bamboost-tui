@@ -14,12 +14,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import lru_cache
+from itertools import chain
 from typing import Literal, Sequence, cast
 
 import rich
 from bamboost import constants
 from bamboost._typing import StrPath
-from bamboost.core.hdf5.attrs_dict import AttrsDict
+from bamboost.core.hdf5.attrsdict import AttrsDict
 from bamboost.core.hdf5.file import HDF5Path
 from bamboost.core.hdf5.ref import Dataset, Group
 from bamboost.core.simulation import Simulation
@@ -289,6 +290,8 @@ class Navigation(
         Binding("h,left,escape", "cursor_left", "Move out of group"),
         Binding("g>g", "cursor_top", "Go to top"),
         Binding("G", "cursor_bottom", "Go to bottom"),
+        Binding("ctrl+d", "page_down", "Scroll down"),
+        Binding("ctrl+u", "page_up", "Scroll up"),
     ]
     BINDING_GROUP_TITLE = "Navigation Panel"
 
@@ -324,9 +327,21 @@ class Navigation(
 
     def action_cursor_top(self) -> None:
         self.cursor_row = 0
+        self.scroll_to_region(Region(0, self.cursor_row, 1, 1), animate=False)
 
     def action_cursor_bottom(self) -> None:
         self.cursor_row = self._group_data.length - 1
+        self.scroll_to_region(Region(0, self.cursor_row, 1, 1), animate=False)
+
+    def action_page_down(self) -> None:
+        self.cursor_row = min(
+            self.cursor_row + self.size.height // 2 - 1, self._group_data.length - 1
+        )
+        self.scroll_to_region(Region(0, self.cursor_row, 1, 1), animate=False)
+
+    def action_page_up(self) -> None:
+        self.cursor_row = max(self.cursor_row - self.size.height // 2 + 1, 0)
+        self.scroll_to_region(Region(0, self.cursor_row, 1, 1), animate=False)
 
     def set_navigation_state(self, state: NavigationState | None) -> None:
         super().set_navigation_state(state)
@@ -367,8 +382,9 @@ class NavigationPreview(VerticalScroll, can_focus=False):
 
     COMPONENT_CLASSES = {
         "--object",
-        "--rule",
         "--content",
+        "--group",
+        "--dataset",
     }
 
     # path: reactive[HDF5Path | None] = reactive(None, layout=True)
@@ -392,13 +408,18 @@ class NavigationPreview(VerticalScroll, can_focus=False):
                 str(obj[()]), style=self.get_component_rich_style("--content")
             )
         else:
-            renderable_object = Text(
-                "An HDF5 Group", style=self.get_component_rich_style("--content")
+            group = self.get_component_rich_style("--group")
+            dataset = self.get_component_rich_style("--dataset")
+            renderable_object = Text.assemble(
+                *chain(
+                    [Text(f"{i}\n", style=group) for i in obj.groups()],
+                    [Text(f"{i}\n", style=dataset) for i in obj.datasets()],
+                )
             )
 
         renderable = rich.console.Group(
-            Text(str(obj), style=self.get_component_rich_style("--object")),
-            Rule(style=self.get_component_rich_style("--rule")),
+            Text(str(obj._path), style=self.get_component_rich_style("--object")),
+            Rule(characters=" "),
             renderable_object,
         )
 
@@ -406,6 +427,8 @@ class NavigationPreview(VerticalScroll, can_focus=False):
 
 
 class HDFViewer(Screen):
+    path: var[HDF5Path | None] = var(None)
+
     def __init__(self, collection_uid: str, simulation_name: str) -> None:
         super().__init__("hdfviewer")
         self.collection_uid = collection_uid
@@ -413,10 +436,10 @@ class HDFViewer(Screen):
         self.simulation = Simulation.from_uid(
             f"{collection_uid}{constants.UID_SEPARATOR}{simulation_name}"
         )
-        self._root = self.simulation.root
         with self.simulation._file.open() as f:
             f.file_map.populate(exclude_numeric=False)
         self._stack: list[NavigationState] = []
+        self._root = self.simulation.root
 
     def on_mount(self) -> None:
         self.query_one(Navigation).set_navigation_state(
@@ -430,7 +453,9 @@ class HDFViewer(Screen):
             with Horizontal(id="nav-container"):
                 yield NavigationStatic(id="nav-static")
                 yield Navigation(id="nav-center")
-                yield NavigationPreview(self._root, id="nav-preview")
+                yield NavigationPreview(self._root, id="nav-preview").data_bind(
+                    HDFViewer.path
+                )
             with Horizontal() as h:
                 yield AttrsView(
                     id="current-group-attrs",
@@ -444,15 +469,18 @@ class HDFViewer(Screen):
     @lru_cache(100)
     def _get_group_data(self, path: HDF5Path) -> GroupData:
         group = self._root[path, Group]
-        return GroupData(path, group.groups(), group.datasets(), group.attrs)
+        return GroupData(
+            path, list(group.groups()), list(group.datasets()), group.attrs
+        )
 
     @on(Navigation.GroupHighlighted)
     def _on_group_highlighted(self, message: Navigation.GroupHighlighted) -> None:
         w = cast(AttrsView, self.query_one("#highlighted-attrs"))
-        w.attrs = self._get_group_data(message.highlighted_path).attrs
-
-        preview_widget = self.query_one(NavigationPreview)
-        preview_widget.path = message.highlighted_path
+        try:
+            w.attrs = self._get_group_data(message.highlighted_path).attrs
+        except ValueError:
+            pass
+        self.path = message.highlighted_path
 
     @on(Navigation.GroupChanged)
     def _on_group_changed(self, message: Navigation.GroupChanged) -> None:

@@ -246,9 +246,9 @@ class ScreenWelcome(Screen):
                     "[green][not bold]:heavy_check_mark:[/not bold] Index scanned.",
                     timeout=3,
                 ):
-                    from bamboost.index import DEFAULT_INDEX
+                    from bamboost.index import Index
 
-                    DEFAULT_INDEX.scan_for_collections()
+                    Index.default.scan_for_collections()
                     await asyncio.sleep(0.5)
 
             self.run_worker(scan_paths(option))

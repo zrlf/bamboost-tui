@@ -10,8 +10,7 @@ requires-python = ">=3.9"
 dependencies = [
     "bamboost",
     "sqlalchemy>=2.0.37",
-    "textual-autocomplete",
-    "textual-dev>=1.7.0",
+    "textual>=1.0.0",
 ]
 
 [project.scripts]
@@ -38,3 +37,8 @@ sortTableKey = "created_at"
 [tool.uv.sources]
 bamboost = { path = "../bamboost@next", editable = true }
 textual-autocomplete = { path = "../../../dev/textual-autocomplete", editable = true }
+
+[dependency-groups]
+dev = [
+    "textual-dev>=1.7.0",
+]

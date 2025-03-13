@@ -82,7 +82,7 @@ class Picker(Provider):
         self.styles: dict[str, RichStyle] = {}
 
     async def startup(self) -> None:
-        from bamboost.index import DEFAULT_INDEX
+        from bamboost.index import Index
 
         app = active_app.get()
         self.styles["uid"] = app.screen.get_component_rich_style(
@@ -97,7 +97,7 @@ class Picker(Provider):
         self.styles["help"] = app.screen.get_component_rich_style(
             "command-palette--help-text", partial=True
         )
-        self.collections = DEFAULT_INDEX.all_collections
+        self.collections = Index.default.all_collections
         widths = (0, 0, 0)
         for coll in self.collections:
             widths = tuple(
@@ -121,12 +121,11 @@ class Picker(Provider):
             # yield Hit(1.0, self._render(coll), self.app.pop_screen)
             yield CollectionHit(1.0, coll, self)
 
-from textual.widgets import HelpPanel
 
 class CollectionPicker(CommandPalette):
     BINDINGS = [
         Binding("ctrl+n", "cursor_down", "move cursor down", show=False),
-        Binding("ctrl+p", "command_list('page_up')", "move cursor up", show=False),
+        Binding("ctrl+p", "command_list('cursor_up')", "move cursor up", show=False),
     ]
     COMPONENT_CLASSES = CommandPalette.COMPONENT_CLASSES | {
         "collection-list--uid",

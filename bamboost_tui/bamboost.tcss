@@ -186,7 +186,7 @@ CollectionTable {
 }
 
 #table-container {
-    border: round $panel;
+    margin-top: 1;
     color: $foreground;
 
     &.placeholder {
@@ -259,25 +259,24 @@ HDFViewer {
     & AttrsView {
         padding: 0 1;
         background: $background;
-        border: round $surface;
+        border: round $border;
         border-title-color: $border;
 
         &:focus-within {
-            border: round $border;
+            border: round $foreground;
         }
         & > .--key {
             color: $primary;
-            text-style: italic;
         }
         & > .--value {
             color: $foreground;
         }
     }
     #nav-container {
-        border: round $surface;
+        border: round $border;
 
         &:focus-within {
-            border: round $border;
+            border: round $foreground;
         }
 
         NavigationStatic {
@@ -308,17 +307,20 @@ HDFViewer {
             border-right: vkey $surface 50%;
         }
         #nav-preview {
-            width: 2fr;
+            width: 3fr;
             padding: 0 1;
 
             & > .--object {
                 color: $accent;
             }
-            & > .--rule {
-                color: $surface;
-            }
             & > .--content {
                 color: $foreground 80%;
+            }
+            & > .--group {
+                color: $primary;
+            }
+            & > .--dataset {
+                color: $accent;
             }
         }
     }
