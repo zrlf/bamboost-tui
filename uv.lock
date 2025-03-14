@@ -204,7 +204,11 @@ source = { editable = "." }
 dependencies = [
     { name = "bamboost" },
     { name = "sqlalchemy" },
-    { name = "textual-autocomplete" },
+    { name = "textual" },
+]
+
+[package.dev-dependencies]
+dev = [
     { name = "textual-dev" },
 ]
 
@@ -212,9 +216,11 @@ dependencies = [
 requires-dist = [
     { name = "bamboost", editable = "../bamboost@next" },
     { name = "sqlalchemy", specifier = ">=2.0.37" },
-    { name = "textual-autocomplete", editable = "../../../dev/textual-autocomplete" },
-    { name = "textual-dev", specifier = ">=1.7.0" },
+    { name = "textual", specifier = ">=1.0.0" },
 ]
+
+[package.metadata.requires-dev]
+dev = [{ name = "textual-dev", specifier = ">=1.7.0" }]
 
 [[package]]
 name = "build"
@@ -1166,27 +1172,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/1f/b6/59b1de04bb4dca0f21ed7ba0b19309ed7f3f5de4396edf20cc2855e53085/textual-1.0.0.tar.gz", hash = "sha256:bec9fe63547c1c552569d1b75d309038b7d456c03f86dfa3706ddb099b151399", size = 1532733 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ac/bb/5fb6656c625019cd653d5215237d7cd6e0b12e7eae4195c3d1c91b2136fc/textual-1.0.0-py3-none-any.whl", hash = "sha256:2d4a701781c05104925e463ae370c630567c70c2880e92ab838052e3e23c986f", size = 660456 },
-]
-
-[[package]]
-name = "textual-autocomplete"
-version = "3.0.0a13"
-source = { editable = "../../../dev/textual-autocomplete" }
-dependencies = [
-    { name = "textual" },
-    { name = "typing-extensions" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "textual", specifier = ">=0.86.2" },
-    { name = "typing-extensions", specifier = ">=4.5.0" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "mypy" },
-    { name = "textual-dev" },
 ]
 
 [[package]]

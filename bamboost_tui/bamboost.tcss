@@ -264,6 +264,7 @@ HDFViewer {
 
         &:focus-within {
             border: round $foreground;
+            border-title-color: $foreground;
         }
         & > .--key {
             color: $primary;
@@ -299,12 +300,14 @@ HDFViewer {
 
         #nav-center {
             width: 2fr;
-            border-right: vkey $surface;
+            border-right: vkey $border 50%;
+            margin-left: 1;
         }
         #nav-static {
             display: none;
             width: 1fr;
-            border-right: vkey $surface 50%;
+            border-right: vkey $border 50%;
+            margin-left: 1;
         }
         #nav-preview {
             width: 3fr;
