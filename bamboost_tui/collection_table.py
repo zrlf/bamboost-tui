@@ -13,6 +13,7 @@ from textual import on, work
 from textual.binding import Binding
 from textual.color import Color
 from textual.containers import Center, Container, Horizontal, Right
+from textual.content import Content
 from textual.coordinate import Coordinate
 from textual.geometry import Offset, Region
 from textual.reactive import reactive, var
@@ -140,7 +141,9 @@ class Placeholder(Static):
             val = self.app.theme_variables.get("secondary")
             c = Color.parse(val).rich_color.name
             yield Static(
-                f"No collection selected. Press [bold {c}]Ctrl+M[/bold {c}] to open the collection picker.",
+                Text.from_markup(
+                    f"No collection selected. Press [bold {c}]Ctrl+M[/bold {c}] to open the collection picker."
+                )
             )
         with Center():
             val = self.app.theme_variables.get("panel")
