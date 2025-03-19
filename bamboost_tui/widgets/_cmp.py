@@ -51,9 +51,9 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.cache import LRUCache
 from textual.css.query import NoMatches
-from textual.geometry import Offset, Region, Spacing
+from textual.geometry import Region, Spacing
 from textual.widget import Widget
-from textual.widgets import Input, Label, OptionList, TextArea
+from textual.widgets import Input, OptionList, TextArea
 from textual.widgets.option_list import Option
 from textual.widgets.text_area import Selection
 
@@ -240,6 +240,7 @@ class AutoCompleteList(OptionList):
     DEFAULT_CSS = """
     AutoCompleteList {
         max-height: 20;
+        text-wrap: nowrap;
     }
     """
 
@@ -393,7 +394,7 @@ class AutoComplete(Widget):
         """Cached state of the target Input/TextArea."""
 
     def compose(self) -> ComposeResult:
-        option_list = AutoCompleteList(wrap=False)
+        option_list = AutoCompleteList()
         option_list.can_focus = False
         yield option_list
 

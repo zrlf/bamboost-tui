@@ -25,6 +25,7 @@ from textual.command import (
 from textual.containers import Horizontal, Vertical
 from textual.message import Message
 from textual.screen import Screen
+from textual.style import Style
 from textual.visual import VisualType
 from textual.widgets import Button, LoadingIndicator
 from textual.worker import get_current_worker
@@ -55,6 +56,10 @@ class CollectionHit(Hit):
 
     def _render(self, matcher: Matcher | None = None) -> VisualType:
         coll = self.collection
+        path_style = self._picker.app.screen.get_component_rich_style(
+            "collection-list--path", partial=True
+        )
+
         tab = Table.grid(
             *(Column(width=w) for w in self._picker._widths),
             padding=(0, 2),
@@ -64,7 +69,7 @@ class CollectionHit(Hit):
         styles = self._picker.styles
         tab.add_row(
             Text(coll.uid, styles["uid"]),
-            matcher.highlight(coll.path)
+            Text.from_markup(matcher.highlight(coll.path).markup, style=path_style)
             if matcher
             else Text(coll.path, styles["path"]),
             Text(str(coll.simulations.__len__()), styles["count"]),
@@ -77,7 +82,11 @@ class Picker(Provider):
 
     _table: Table
 
-    def __init__(self, screen: Screen, match_style: RichStyle | None = None) -> None:
+    def __init__(self, screen: Screen, match_style: Style | None = None) -> None:
+        match_style = Style(
+            underline=True,
+            bold=True,
+        )
         super().__init__(screen, match_style)
         self.styles: dict[str, RichStyle] = {}
 
@@ -113,7 +122,6 @@ class Picker(Provider):
         for coll in self.collections:
             score = matcher.match(coll.uid + coll.path)
             if score > 0:
-                # yield Hit(score, self._render(coll, matcher), self.app.pop_screen)
                 yield CollectionHit(score, coll, self, matcher)
 
     async def discover(self) -> Hits:

@@ -340,7 +340,7 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
     def action_cursor_to_home(self):
         self.cursor_coordinate = Coordinate(0, self.cursor_coordinate.column)
 
-    @work
+    @work(exclusive=True)
     async def action_command_line(self, prefix: str = "", label: str = ":"):
         cmd: CommandMessage = await self.app.push_screen_wait(
             CommandLine(self, prefix=prefix, label=label)
@@ -386,7 +386,7 @@ class ScreenCollection(Screen, inherit_bindings=False):
             with Right():
                 yield self._tabs
         yield self._table_container
-        yield Footer()
+        yield Footer(disabled=True)
 
     def watch_current_uid(self, _old, new: str | None) -> None:
         if new is None:
