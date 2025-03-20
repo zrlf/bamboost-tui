@@ -13,6 +13,7 @@ The screen is divided into three main parts:
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from functools import lru_cache
 from itertools import chain
 from typing import Literal, Sequence, cast
@@ -114,6 +115,9 @@ class AttrsView(VerticalScroll, can_focus=True):
 
         tab = Table.grid("key", "value", padding=(0, 2))
         for key, value in self.attrs.items():
+            if isinstance(value, datetime):
+                value = value.strftime("%Y-%m-%d %H:%M:%S")
+
             text = Text(str(value), style=self.get_component_rich_style("--value"))
             ReprHighlighter().highlight(text)
             tab.add_row(
