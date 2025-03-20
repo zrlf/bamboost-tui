@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from textual import command
 from textual.app import App
 from textual.binding import Binding
 from textual.css.query import NoMatches
@@ -38,8 +39,9 @@ class BamboostApp(App):
     CSS_PATH = "bamboost.tcss"
     BINDINGS = [
         Binding("ctrl+c", "quit", "quit", priority=True, show=False),
-        Binding("ctrl+z", "suspend_process"),
+        Binding("ctrl+z", "suspend_process", show=False),
         Binding("q", "pop_screen_or_exit", "quit screen"),
+        Binding("Q", "quit", "exit"),
         Binding("?", "toggle_help_panel", "Show help"),
     ]
     COMMAND_PALETTE_BINDING = "ctrl+o"
