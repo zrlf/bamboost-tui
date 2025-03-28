@@ -10,7 +10,7 @@ from rich.highlighter import ReprHighlighter
 from rich.table import Table
 from rich.text import Text
 from textual import on, work
-from textual.binding import Binding
+from textual.binding import Binding, Keymap
 from textual.color import Color
 from textual.containers import Center, Container, Horizontal, Right
 from textual.content import Content
@@ -28,6 +28,7 @@ from bamboost_tui.commandline import CommandLine, CommandMessage
 from bamboost_tui.hdfview import HDFViewer
 from bamboost_tui.utils import KeySubgroupsMixin
 from bamboost_tui.widgets import ModifiedDataTable, SortOrder
+from bamboost_tui.widgets.confirmation import ModalPrompt
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -192,18 +193,19 @@ def cell_highlighter(cell: object) -> Text:
 
 class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=False):
     BINDINGS = [
+        Binding("enter", "select_cursor", "show simulation", show=False),
         Binding("j,down", "cursor_down", "move cursor down", show=False),
         Binding("k,up", "cursor_up", "move cursor up", show=False),
         Binding("l,right", "cursor_right", "move cursor right", show=False),
         Binding("h,left", "cursor_left", "move cursor left", show=False),
-        Binding("s", "sort_column", "sort column"),
         Binding("G", "cursor_to_end", "move cursor to end", show=False),
         Binding("g>g", "cursor_to_home", "move cursor to start", show=False),
-        Binding("enter", "select_cursor", "show simulation", show=False),
         Binding("ctrl+d,pagedown", "page_down", "scroll page down", show=False),
         Binding("ctrl+u,pageup", "page_up", "scroll page up", show=False),
         Binding(":", "command_line", "enter command mode", show=True),
         Binding("/", 'command_line("goto", "")', "jump to column", show=True),
+        Binding("s", "sort_column", "sort column"),
+        Binding("d", "delete", "delete simulation"),
     ]
     BINDING_GROUP_TITLE = "Collection commands"
     COMPONENT_CLASSES = DataTable.COMPONENT_CLASSES | {
@@ -352,6 +354,29 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
             return self.move_cursor(column=self._column_locations.get(cmd.column_key))
         if isinstance(cmd, CommandLine.Sort):
             return self.action_sort_column(cmd.column_key, cmd.reverse)
+
+    async def action_delete(self):
+        row_key = self._row_locations.get_key(self.cursor_row)
+        assert row_key is not None, "No simulation selected."
+        name = row_key.value
+        assert name is not None, "No simulation selected."
+
+        def _delete(confirm: bool | None):
+            if not confirm:
+                return
+            Index.default._drop_simulation(self.uid, name)
+            import shutil
+
+            path = Index.default._get_collection_path(self.uid).joinpath(name)  # pyright: ignore[reportArgumentType]
+            shutil.rmtree(path)
+
+            # refresh the table
+            self.remove_row(row_key)
+
+        self.app.push_screen(
+            ModalPrompt(f"Really want to delete simulation [bold]{name}[/bold]"),
+            _delete,
+        )
 
 
 class ScreenCollection(Screen, inherit_bindings=False):

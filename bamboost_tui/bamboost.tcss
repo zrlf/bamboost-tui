@@ -459,3 +459,39 @@ CollectionPicker {
     }
 }
 
+# -------------------------
+# MODAL PROMPT
+# -------------------------
+ModalPrompt {
+    align: center middle;
+}
+#modal-prompt {
+    height: auto;
+    width: 50%;
+    align: center middle;
+    background: $surface;
+    border: double $error;
+    color: $error;
+
+    Label {
+        column-span: 2;
+        width: 100%;
+        content-align: center middle;
+    }
+    Horizontal {
+        height: auto;
+        align: center middle;
+    }
+    Button {
+        background: transparent;
+        border: round $border;
+        margin: 1 3;
+        margin-bottom: 0;
+    }
+    Button:focus {
+        color: $error;
+        border: round $error;
+    }
+}
+
+
