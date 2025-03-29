@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from time import monotonic
+from typing import TYPE_CHECKING
 
-from bamboost.index.sqlmodel import CollectionORM
 from rich.console import Group
 from rich.style import Style as RichStyle
 from rich.table import Column, Table
@@ -29,6 +29,9 @@ from textual.style import Style
 from textual.visual import VisualType
 from textual.widgets import Button, LoadingIndicator
 from textual.worker import get_current_worker
+
+if TYPE_CHECKING:
+    from bamboost.index.sqlmodel import CollectionORM
 
 
 class CollectionHit(Hit):

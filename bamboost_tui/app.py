@@ -4,10 +4,12 @@ from textual import command
 from textual.app import App
 from textual.binding import Binding
 from textual.css.query import NoMatches
+from textual.screen import Screen
 from textual.theme import BUILTIN_THEMES, Theme
-from textual.widgets import HelpPanel
+from textual.widgets import HelpPanel, LoadingIndicator
 
 from bamboost_tui.collection_table import ScreenCollection
+
 
 ansi_theme = Theme(
     name="ansi",
@@ -76,4 +78,4 @@ class BamboostApp(App):
 
 
 if __name__ == "__main__":
-    BamboostApp(watch_css=True, ansi_color=False).run()
+    BamboostApp(watch_css=False, ansi_color=True).run()

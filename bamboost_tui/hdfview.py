@@ -16,12 +16,11 @@ from dataclasses import dataclass
 from datetime import datetime
 from functools import lru_cache
 from itertools import chain
-from typing import Literal, Sequence, cast
+from typing import TYPE_CHECKING, Literal, Sequence, cast
 
 import rich
 from bamboost import constants
 from bamboost._typing import StrPath
-from bamboost.core.hdf5.attrsdict import AttrsDict
 from bamboost.core.hdf5.file import HDF5Path
 from bamboost.core.hdf5.ref import Dataset, Group
 from bamboost.core.simulation import Simulation
@@ -44,6 +43,9 @@ from textual.strip import Strip
 from textual.widgets import Footer, Static
 
 from bamboost_tui.utils import KeySubgroupsMixin
+
+if TYPE_CHECKING:
+    from bamboost.core.hdf5.attrsdict import AttrsDict
 
 
 class Header(Static, can_focus=False):

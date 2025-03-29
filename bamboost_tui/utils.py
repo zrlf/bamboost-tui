@@ -16,6 +16,12 @@ if TYPE_CHECKING:
         _subgroup: dict[str, Binding] | None
 
 
+def get_index():
+    from bamboost.index import Index
+
+    return Index.default
+
+
 class KeySubgroupsMixin:
     """A mixin for widgets that need to handle key subgroups."""
 

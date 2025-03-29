@@ -1,32 +1,30 @@
 from __future__ import annotations
 
+import subprocess
 from datetime import datetime
 from itertools import chain, cycle
 from textwrap import dedent
 from typing import TYPE_CHECKING
 
-from bamboost.index import Index
 from rich.highlighter import ReprHighlighter
 from rich.table import Table
 from rich.text import Text
 from textual import on, work
-from textual.binding import Binding, Keymap
+from textual.binding import Binding
 from textual.color import Color
 from textual.containers import Center, Container, Horizontal, Right
-from textual.content import Content
 from textual.coordinate import Coordinate
 from textual.geometry import Offset, Region
 from textual.reactive import reactive, var
 from textual.screen import Screen
 from textual.widget import Widget
-from textual.widgets import DataTable, Footer, Static, Tab
+from textual.widgets import DataTable, Footer, LoadingIndicator, Static, Tab
 from textual.widgets.data_table import ColumnKey
 from typing_extensions import Self
 
 from bamboost_tui.collection_picker import CollectionHit, CollectionPicker
 from bamboost_tui.commandline import CommandLine, CommandMessage
-from bamboost_tui.hdfview import HDFViewer
-from bamboost_tui.utils import KeySubgroupsMixin
+from bamboost_tui.utils import KeySubgroupsMixin, get_index
 from bamboost_tui.widgets import ModifiedDataTable, SortOrder
 from bamboost_tui.widgets.confirmation import ModalPrompt
 
@@ -69,7 +67,7 @@ class Header(Widget, can_focus=False):
         return tab
 
     def _get_path(self, uid: str | None) -> str:
-        found_path = Index.default._get_collection_path(uid) if uid else None
+        found_path = get_index()._get_collection_path(uid) if uid else None
         return found_path.as_posix() if found_path else "[Collection location found]"
 
     def on_mount(self):
@@ -206,6 +204,7 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
         Binding("/", 'command_line("goto", "")', "jump to column", show=True),
         Binding("s", "sort_column", "sort column"),
         Binding("d", "delete", "delete simulation"),
+        Binding("o>p", "open_paraview", "open paraview"),
     ]
     BINDING_GROUP_TITLE = "Collection commands"
     COMPONENT_CLASSES = DataTable.COMPONENT_CLASSES | {
@@ -248,7 +247,7 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
     async def _load_data(self):
         import pandas as pd
 
-        sims = Index.default.collection(self.uid).simulations
+        sims = get_index().collection(self.uid).simulations
         tab = [i.as_dict(standalone=False) for i in sims]
         self.df = pd.DataFrame.from_records(tab)
         """The DataFrame that holds the data for the table."""
@@ -332,7 +331,10 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
 
     def action_select_cursor(self):
         name = self._row_locations.get_key(self.cursor_row).value
-        self.app.push_screen(HDFViewer(self.uid, name))  # type: ignore
+        assert name is not None, "No simulation selected."
+        from bamboost_tui.hdfview import HDFViewer
+
+        self.app.push_screen(HDFViewer(self.uid, name))
 
     def action_cursor_to_end(self):
         self.cursor_coordinate = Coordinate(
@@ -364,10 +366,10 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
         def _delete(confirm: bool | None):
             if not confirm:
                 return
-            Index.default._drop_simulation(self.uid, name)
+            get_index()._drop_simulation(self.uid, name)
             import shutil
 
-            path = Index.default._get_collection_path(self.uid).joinpath(name)  # pyright: ignore[reportArgumentType]
+            path = get_index()._get_collection_path(self.uid).joinpath(name)  # pyright: ignore[reportArgumentType]
             shutil.rmtree(path)
 
             # refresh the table
@@ -377,6 +379,16 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
             ModalPrompt(f"Really want to delete simulation [bold]{name}[/bold]"),
             _delete,
         )
+
+    def action_open_paraview(self):
+        row_key = self._row_locations.get_key(self.cursor_row)
+        assert row_key is not None, "No simulation selected."
+        name = row_key.value
+        assert name is not None, "No simulation selected."
+
+        path = get_index()._get_collection_path(self.uid).joinpath(name)  # pyright: ignore[reportArgumentType]
+        path = path.joinpath("data.xdmf")
+        subprocess.run(["paraview", path.as_posix()])
 
 
 class ScreenCollection(Screen, inherit_bindings=False):
