@@ -18,6 +18,23 @@ Rule {
     color: $foreground;
 }
 
+Footer {
+    background: $surface;
+    grid-gutter: 0;
+    padding-left: 1;
+
+    & .footer-key--key {
+        background: $surface;
+        padding-right: 1;
+        color: $accent;
+    }
+    & .footer-key--description {
+        background: $surface;
+        color: $foreground-muted;
+        opacity: 0.3;
+    }
+}
+
 HelpPanel {
     dock: right;
     split: none;
@@ -314,7 +331,7 @@ HDFViewer {
             padding: 0 1;
 
             & > .--object {
-                color: $accent;
+                color: $secondary;
             }
             & > .--content {
                 color: $foreground 80%;
