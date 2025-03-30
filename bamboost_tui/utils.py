@@ -6,6 +6,7 @@ from textual import events
 from textual.app import App
 from textual.binding import Binding, BindingType
 from textual.color import Color
+from textual.widget import Widget
 
 
 def get_index():
@@ -61,7 +62,15 @@ class KeySubgroupsMixin:
             event.prevent_default()
             event.stop()
             self._active_subgroup = None
-            getattr(self, f"action_{item.action}")()
+            # split action into method and args "do_something(arg1, arg2)"
+            import re
+
+            match = re.match(r"(\w+)\((.*)\)", item.action)
+            if match:
+                method, args = match.groups()
+                getattr(self, f"action_{method}")(args)
+            else:
+                getattr(self, f"action_{item.action}")()
             return True
 
         self._active_subgroup = item

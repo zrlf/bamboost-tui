@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import asyncio
+import time
+
+from textual import work
 from textual.app import App
 from textual.binding import Binding
 from textual.css.query import NoMatches
@@ -39,7 +43,7 @@ class BamboostApp(App):
     CSS_PATH = "bamboost.tcss"
     BINDINGS = [
         Binding("ctrl+c", "quit", "quit", priority=True, show=False),
-        Binding("ctrl+z", "suspend_process", show=False),
+        Binding("ctrl+z", "suspend_process", "suspend application", show=False),
         Binding("q", "pop_screen_or_exit", "quit screen"),
         Binding("Q", "quit", "exit"),
         Binding("?", "toggle_help_panel", "Show help"),
@@ -58,13 +62,24 @@ class BamboostApp(App):
         # This fixes the bug that the screen is empty after resuming the app
         self.app_resume_signal.subscribe(self, lambda *_args, **_kwargs: self.refresh())
 
+        self._preload_modules()
         self.push_screen(ScreenCollection())
 
+    @work(thread=True)
+    async def _preload_modules(self) -> None:
+        # Import in a thread to avoid blocking the event loop
+        import bamboost.core.hdf5.attrsdict
+        import bamboost.core.hdf5.file
+        import bamboost.core.simulation
+        import bamboost.index
+        import h5py
+        import pandas
+
     async def action_toggle_help_panel(self):
-         try:
-             await self.query_one(HelpPanel).remove()
-         except NoMatches:
-             self.action_show_help_panel()
+        try:
+            await self.query_one(HelpPanel).remove()
+        except NoMatches:
+            self.action_show_help_panel()
 
     def action_pop_screen_or_exit(self) -> None:
         self.pop_screen()

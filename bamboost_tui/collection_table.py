@@ -187,6 +187,7 @@ def cell_highlighter(cell: object) -> Text:
 
 class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=False):
     BINDINGS = [
+        # Navigation
         Binding("enter", "select_cursor", "show simulation", show=False),
         Binding("j,down", "cursor_down", "move cursor down", show=False),
         Binding("k,up", "cursor_up", "move cursor up", show=False),
@@ -196,11 +197,14 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
         Binding("g>g", "cursor_to_home", "move cursor to start", show=False),
         Binding("ctrl+d,pagedown", "page_down", "scroll page down", show=False),
         Binding("ctrl+u,pageup", "page_up", "scroll page up", show=False),
+        Binding("$", "cursor_to_last_column", "move cursor to right end", show=False),
+        Binding("0", "cursor_to_first_column", "move cursor to left end", show=False),
+        # Commands
         Binding(":", "command_line", "enter command mode", show=True),
-        Binding("/", 'command_line("goto", "")', "jump to column", show=True),
-        Binding("s", "sort_column", "sort column"),
-        Binding("d", "delete", "delete simulation"),
-        Binding("o>p", "open_paraview", "open paraview"),
+        Binding("/", 'command_line("goto", "")', "jump to column", show=False),
+        Binding("s", "sort_column", "sort column", show=False),
+        Binding("d", "delete", "delete simulation", show=False),
+        Binding("o>p", "open_paraview", "open paraview", show=False),
     ]
     BINDING_GROUP_TITLE = "Collection commands"
     COMPONENT_CLASSES = DataTable.COMPONENT_CLASSES | {
@@ -337,6 +341,14 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
 
     def action_cursor_to_home(self):
         self.cursor_coordinate = Coordinate(0, self.cursor_coordinate.column)
+
+    def action_cursor_to_last_column(self):
+        self.cursor_coordinate = Coordinate(
+            self.cursor_coordinate.row, len(self.columns) - 1
+        )
+
+    def action_cursor_to_first_column(self):
+        self.cursor_coordinate = Coordinate(self.cursor_coordinate.row, 0)
 
     @work(exclusive=True)
     async def action_command_line(self, prefix: str = "", label: str = ":"):

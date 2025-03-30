@@ -28,11 +28,7 @@ from textual.widgets import Input, Label
 from textual.widgets.data_table import ColumnKey
 from typing_extensions import Self
 
-from bamboost_tui.widgets import (
-    AutoComplete,
-    DropdownItem,
-    TargetState,
-)
+from bamboost_tui.widgets import AutoComplete, DropdownItem, TargetState
 
 if TYPE_CHECKING:
     from bamboost_tui.collection_table import CollectionTable
@@ -144,12 +140,13 @@ class Parser:
         self, *commands: Type[CommandMessage], target: CommandLine, prefix: str = ""
     ):
         self._target = target
+
+        # build the commands against the target command line
+        # this fetches the choices for the arguments
         self._commands: dict[str, CommandMessage] = {
             cmd.__name__.lower(): cmd(target) for cmd in commands
         }
-        self._argparse_parser = self._create_argparse_parser(
-            [cmd(target) for cmd in commands]
-        )
+        self._argparse_parser = self._create_argparse_parser(self._commands.values())
         self._prefix = prefix
 
     def candidates(self, state: TargetState) -> list[DropdownItem]:
