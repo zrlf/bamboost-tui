@@ -151,26 +151,22 @@ class Placeholder(Static):
 
 
 class TableContainer(Container):
-    _widget: reactive[CollectionTable | Placeholder] = reactive(
+    _active_widget: reactive[CollectionTable | Placeholder] = reactive(
         Placeholder, recompose=True
     )
     DEFAULT_CLASSES = "placeholder"
 
-    def __init__(self, id: str | None = None):
-        super().__init__(id=id)
-        self.set_reactive(TableContainer._widget, Placeholder())
-
-    def watch__widget(self, old: Widget, new: Widget) -> None:
+    def watch__active_widget(self, old: Widget, new: Widget) -> None:
         if isinstance(new, Placeholder):
             self.add_class("placeholder")
         else:
             self.remove_class("placeholder")
 
     def compose(self) -> ComposeResult:
-        yield self._widget
+        yield self._active_widget
 
     def focus(self, scroll_visible: bool = True) -> CollectionTable | Placeholder:
-        return self._widget.focus(scroll_visible)
+        return self._active_widget.focus(scroll_visible)
 
 
 REPR_HIGHLIGHTER = ReprHighlighter()
@@ -234,8 +230,6 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
 
         self.uid: str = uid
         """The collection uid to display."""
-
-        self._create_subgroup_mapping()
 
     def on_mount(self):
         if self.df is None:
@@ -427,14 +421,14 @@ class ScreenCollection(Screen, inherit_bindings=False):
 
     def watch_current_uid(self, _old, new: str | None) -> None:
         if new is None:
-            self._table_container._widget = Placeholder()
+            self._table_container._active_widget = Placeholder()
             return
         try:
-            self._table_container._widget = self._open_collections[new]
+            self._table_container._active_widget = self._open_collections[new]
         except KeyError:
             new_table = CollectionTable(new)
             self._open_collections[new] = new_table
-            self._table_container._widget = new_table
+            self._table_container._active_widget = new_table
 
     def action_toggle_picker(self):
         self.app.push_screen(CollectionPicker())
@@ -464,7 +458,7 @@ class ScreenCollection(Screen, inherit_bindings=False):
             self.remove_children(f"#{collection.id}")
             if not _open_collections:
                 self.current_uid = None
-                self._table_container._widget = Placeholder()
+                self._table_container._active_widget = Placeholder()
             else:
                 self.current_uid = next(iter(self._open_collections.keys()))
         else:

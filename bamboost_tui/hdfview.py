@@ -301,9 +301,6 @@ class Navigation(
     ]
     BINDING_GROUP_TITLE = "Navigation Panel"
 
-    def on_mount(self) -> None:
-        self._create_subgroup_mapping()
-
     def action_cursor_down(self) -> None:
         y = min(self.cursor_row + 1, self._group_data.length - 1)
         self.scroll_to_region(Region(0, y, 1, 1), animate=False)
