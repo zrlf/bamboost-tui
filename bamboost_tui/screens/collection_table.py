@@ -22,8 +22,8 @@ from textual.widgets import DataTable, Footer, Static, Tab
 from textual.widgets.data_table import ColumnKey
 from typing_extensions import Self
 
-from bamboost_tui.screens.collection_picker import CollectionHit, CollectionPicker
 from bamboost_tui.commandline import CommandLine, CommandMessage
+from bamboost_tui.screens.collection_picker import CollectionHit, CollectionPicker
 from bamboost_tui.utils import KeySubgroupsMixin, get_index
 from bamboost_tui.widgets import ModifiedDataTable, SortOrder
 from bamboost_tui.widgets.confirmation import ModalPrompt
@@ -202,6 +202,7 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
         # Commands
         Binding(":", "command_line", "enter command mode", show=True),
         Binding("/", 'command_line("goto", "")', "jump to column", show=False),
+        Binding("r", "reload", "reload data", show=False),
         Binding("s", "sort_column", "sort column", show=False),
         Binding("d", "delete", "delete simulation", show=False),
         Binding("o>p", "open_paraview", "open paraview", show=False),
@@ -243,12 +244,7 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
 
     @work(exclusive=True)
     async def _load_data(self):
-        import pandas as pd
-
-        sims = get_index().collection(self.uid).simulations
-        tab = [i.as_dict(standalone=False) for i in sims]
-        self.df = pd.DataFrame.from_records(tab)
-        """The DataFrame that holds the data for the table."""
+        self.df = get_index().collection(self.uid).to_pandas()
         self.loading = False
         self.focus()
 
@@ -396,6 +392,10 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
         path = get_index()._get_collection_path(self.uid).joinpath(name)  # pyright: ignore[reportArgumentType]
         path = path.joinpath("data.xdmf")
         subprocess.run(["paraview", path.as_posix()])
+
+    def action_reload(self):
+        self._load_data()
+        self.notify("✔️ Reloaded data", timeout=0.5)
 
 
 class ScreenCollection(Screen, inherit_bindings=False):
