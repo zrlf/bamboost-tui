@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-import asyncio
-import time
-
 from textual import work
 from textual.app import App
 from textual.binding import Binding
@@ -10,7 +7,7 @@ from textual.css.query import NoMatches
 from textual.theme import BUILTIN_THEMES, Theme
 from textual.widgets import HelpPanel
 
-from bamboost_tui.collection_table import ScreenCollection
+from bamboost_tui.screens.collection_table import ScreenCollection
 
 ansi_theme = Theme(
     name="ansi",

@@ -18,7 +18,7 @@ from textual.geometry import Offset, Region
 from textual.reactive import reactive, var
 from textual.screen import Screen
 from textual.widget import Widget
-from textual.widgets import DataTable, Footer, LoadingIndicator, Static, Tab
+from textual.widgets import DataTable, Footer, Static, Tab
 from textual.widgets.data_table import ColumnKey
 from typing_extensions import Self
 
@@ -330,7 +330,8 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
     def action_select_cursor(self):
         name = self._row_locations.get_key(self.cursor_row).value
         assert name is not None, "No simulation selected."
-        from bamboost_tui.hdfview import HDFViewer
+
+        from bamboost_tui.screens.hdfview import HDFViewer
 
         self.app.push_screen(HDFViewer(self.uid, name))
 
@@ -443,6 +444,9 @@ class ScreenCollection(Screen, inherit_bindings=False):
             self._table_container._active_widget = new_table
 
     def action_toggle_picker(self):
+        self.app.push_screen(CollectionPicker())
+
+    def action_toggle_picker_remote(self):
         self.app.push_screen(CollectionPicker())
 
     @work(exclusive=True)
