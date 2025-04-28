@@ -22,7 +22,7 @@ from textual.widgets import DataTable, Footer, Static, Tab
 from textual.widgets.data_table import ColumnKey
 from typing_extensions import Self
 
-from bamboost_tui.collection_picker import CollectionHit, CollectionPicker
+from bamboost_tui.screens.collection_picker import CollectionHit, CollectionPicker
 from bamboost_tui.commandline import CommandLine, CommandMessage
 from bamboost_tui.utils import KeySubgroupsMixin, get_index
 from bamboost_tui.widgets import ModifiedDataTable, SortOrder
