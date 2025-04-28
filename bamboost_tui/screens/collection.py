@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 
 class CollectionHeader(Widget, can_focus=False):
     DEFAULT_CSS = """
-    Header {
+    CollectionHeader {
         height: auto;
         width: auto;
     }
@@ -206,6 +206,7 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
         Binding("s", "sort_column", "sort column", show=False),
         Binding("d", "delete", "delete simulation", show=False),
         Binding("o>p", "open_paraview", "open paraview", show=False),
+        Binding("c>s", "sync", "sync collection with fs", show=False),
     ]
     BINDING_GROUP_TITLE = "Collection commands"
     COMPONENT_CLASSES = DataTable.COMPONENT_CLASSES | {
@@ -253,7 +254,7 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
             return
 
         await self._create_table()
-        self.refresh(layout=True)
+        self.refresh(layout=False)
 
     async def _create_table(self) -> Self:
         # clear the current table
@@ -393,9 +394,33 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
         path = path.joinpath("data.xdmf")
         subprocess.run(["paraview", path.as_posix()])
 
-    def action_reload(self):
-        self._load_data()
+    async def action_reload(self):
+        previous_coordinate = self.cursor_coordinate
+
+        # update df without triggering a watch
+        self.set_reactive(
+            CollectionTable.df, get_index().collection(self.uid).to_pandas()
+        )
+        await self._create_table()
+
+        # sort the table as before
+        if self._sort_column is not None:
+            self.sort(self._sort_column, reverse=self._sort_column_order.value)
+
+        # move cursor to previous position
+        self.cursor_coordinate = previous_coordinate
+
         self.notify("✔️ Reloaded data", timeout=0.5)
+
+    async def action_sync(self):
+        index = get_index()
+        # check if the path is correct
+        index.resolve_path(self.uid)
+        # sync the collection
+        index.sync_collection(self.uid)
+        self.notify("✔️ Synced collection", timeout=0.5)
+        # reload the collection
+        await self.action_reload()
 
 
 class ScreenCollection(Screen, inherit_bindings=False):

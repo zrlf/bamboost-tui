@@ -52,7 +52,7 @@ class KeySubgroupsMixin:
             return True
         return False
 
-    def _resolve_binding(self, subgroup: Subgroup, event: events.Key) -> bool:
+    async def _resolve_binding(self, subgroup: Subgroup, event: events.Key) -> bool:
         try:
             item = subgroup[event.key]
         except KeyError:
@@ -68,18 +68,18 @@ class KeySubgroupsMixin:
             match = re.match(r"(\w+)\((.*)\)", item.action)
             if match:
                 method, args = match.groups()
-                getattr(self, f"action_{method}")(args)
+                await getattr(self, f"action_{method}")(args)
             else:
-                getattr(self, f"action_{item.action}")()
+                await getattr(self, f"action_{item.action}")()
             return True
 
         self._active_subgroup = item
         return True
 
-    def on_key(self, event: events.Key) -> None:
+    async def on_key(self, event: events.Key) -> None:
         # Active subgroup resolution
         if self._active_subgroup:
-            if self._resolve_binding(self._active_subgroup, event):
+            if await self._resolve_binding(self._active_subgroup, event):
                 return
             # Invalid key: exit subgroup
             self._active_subgroup = None
