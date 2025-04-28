@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import subprocess
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
@@ -28,17 +27,22 @@ class GlobalCommands(Provider):
         command: Callable[[], Any]
         help: Optional[str] = None
 
-    COMMANDS = [
-        CustomCommand(
-            "Scan for collections",
-            get_index().scan_for_collections,
-            "The config is based on the current working directory.",
-        ),
-    ]
+    COMMANDS: list[CustomCommand] = []
+
+    def scan_collections(self) -> None:
+        """Scan for collections."""
+        get_index().scan_for_collections()
+        self.app.notify("✔️ Scanned for collections")
 
     async def startup(self) -> None:
         """Called once when the command palette is opened, prior to searching."""
-        pass
+        self.COMMANDS = [
+            GlobalCommands.CustomCommand(
+                "Scan for collections",
+                self.scan_collections,
+                "The config is based on the current working directory.",
+            ),
+        ]
 
     async def search(self, query: str) -> Hits:
         matcher = self.matcher(query)
