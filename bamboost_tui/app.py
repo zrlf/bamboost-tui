@@ -8,6 +8,7 @@ from textual.theme import BUILTIN_THEMES, Theme
 from textual.widgets import HelpPanel
 
 from bamboost_tui.screens.collection_table import ScreenCollection
+from bamboost_tui.screens.command_palette import CommandPalette
 
 ansi_theme = Theme(
     name="ansi",
@@ -44,9 +45,9 @@ class BamboostApp(App):
         Binding("q", "pop_screen_or_exit", "quit screen"),
         Binding("Q", "quit", "exit"),
         Binding("?", "toggle_help_panel", "Show help"),
+        Binding("ctrl+o", "command_palette", "Command palette"),
     ]
-    COMMAND_PALETTE_BINDING = "ctrl+o"
-    BINDING_GROUP_TITLE = "App commands"
+    ENABLE_COMMAND_PALETTE = False
 
     def on_mount(self) -> None:
         if ansi_colors_set := self.ansi_color:
@@ -84,6 +85,9 @@ class BamboostApp(App):
         # if only the default screen is left, exit the app
         if len(self.screen_stack) <= 1 and self.screen_stack[0].id == "_default":
             self.exit()
+
+    def action_command_palette(self) -> None:
+        self.push_screen(CommandPalette())
 
 
 if __name__ == "__main__":
