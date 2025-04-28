@@ -174,7 +174,6 @@ CollectionTable {
     scrollbar-size: 0 1;
 
     &:focus {
-        background: transparent;
     }
 }
 .datatable--cursor {
@@ -203,11 +202,13 @@ CollectionTable {
 }
 
 #table-container {
-    margin-top: 1;
+    margin-top: 0;
+    border-top: solid $border;
     color: $foreground;
 
     &.placeholder {
         align: center middle;
+        border-top: none;
         Static {
             width: auto;
             margin-top: 1;
@@ -222,11 +223,10 @@ CollectionTable {
     height: auto;
 
     OpenCollectionsTabs {
-        align: right top;
-        height: auto;
-        max-height: 1;
+        align: right bottom;
+        height: 2;
         Tab {
-            width: 14;
+            max-width: 14;
             max-height: 1;
         }
     }
