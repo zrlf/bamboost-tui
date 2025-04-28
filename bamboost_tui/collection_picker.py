@@ -44,7 +44,7 @@ class CollectionHit(Hit):
         self,
         score: float,
         collection: CollectionORM,
-        picker: Picker,
+        picker: CollectionProvider,
         matcher: Matcher | None = None,
     ) -> None:
         self.collection = collection
@@ -80,7 +80,7 @@ class CollectionHit(Hit):
         return Group(tab, Text("last modified: ", styles["help"]))
 
 
-class Picker(Provider):
+class CollectionProvider(Provider):
     """A command provider to select collections."""
 
     _table: Table
@@ -132,6 +132,34 @@ class Picker(Provider):
             # yield Hit(1.0, self._render(coll), self.app.pop_screen)
             yield CollectionHit(1.0, coll, self)
 
+class RemoteCollectionProvider(CollectionProvider):
+    async def startup(self) -> None:
+        from bamboost.index import Index
+
+        app = active_app.get()
+        self.styles["uid"] = app.screen.get_component_rich_style(
+            "collection-list--uid", partial=True
+        )
+        self.styles["path"] = app.screen.get_component_rich_style(
+            "collection-list--path", partial=True
+        )
+        self.styles["count"] = app.screen.get_component_rich_style(
+            "collection-list--count", partial=True
+        )
+        self.styles["help"] = app.screen.get_component_rich_style(
+            "command-palette--help-text", partial=True
+        )
+        from bamboost.core.remote import Remote
+        self.collections = Remote()
+        widths = (0, 0, 0)
+        for coll in self.collections:
+            widths = tuple(
+                max(width, len(str(cell)))
+                for width, cell in zip(
+                    widths, (coll.uid, coll.path, coll.simulations.__len__())
+                )
+            )
+        self._widths = widths
 
 class CollectionPicker(CommandPalette):
     BINDINGS = [
@@ -145,7 +173,7 @@ class CollectionPicker(CommandPalette):
     }
 
     def __init__(self):
-        super().__init__(providers=[Picker], placeholder="Search collections")
+        super().__init__(providers=[CollectionProvider], placeholder="Search collections")
 
     def compose(self) -> ComposeResult:
         """Compose the command palette.
