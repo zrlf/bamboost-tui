@@ -12,6 +12,8 @@ $background-cp: transparent;
 # ---------------------------------------------
 Toast {
     background: $surface;
+    padding: 0 1;
+    margin: 0;
 }
 Rule {
     margin: 0;
