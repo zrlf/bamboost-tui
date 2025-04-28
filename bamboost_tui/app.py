@@ -7,7 +7,7 @@ from textual.css.query import NoMatches
 from textual.theme import BUILTIN_THEMES, Theme
 from textual.widgets import HelpPanel
 
-from bamboost_tui.screens.collection_table import ScreenCollection
+from bamboost_tui.screens.collection import ScreenCollection
 from bamboost_tui.screens.command_palette import CommandPalette
 
 ansi_theme = Theme(

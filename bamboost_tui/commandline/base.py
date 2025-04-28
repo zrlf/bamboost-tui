@@ -31,7 +31,7 @@ from typing_extensions import Self
 from bamboost_tui.widgets import AutoComplete, DropdownItem, TargetState
 
 if TYPE_CHECKING:
-    from bamboost_tui.screens.collection_table import CollectionTable
+    from bamboost_tui.screens.collection import CollectionTable
 
     ChoicesType = Union[Iterable[str], Callable[["CommandLine"], Iterable[str]], None]
     ChoicesResolvedType = Iterable[str]

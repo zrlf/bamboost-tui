@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     from textual.app import ComposeResult, RenderResult
 
 
-class Header(Widget, can_focus=False):
+class CollectionHeader(Widget, can_focus=False):
     DEFAULT_CSS = """
     Header {
         height: auto;
@@ -426,7 +426,7 @@ class ScreenCollection(Screen, inherit_bindings=False):
 
     def compose(self) -> ComposeResult:
         with Horizontal(id="header"):
-            yield Header()
+            yield CollectionHeader()
             with Right():
                 yield self._tabs
         yield self._table_container

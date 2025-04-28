@@ -18,14 +18,15 @@ if TYPE_CHECKING:
     pass
 
 
+@dataclass
+class CustomCommand:
+    name: str
+    command: Callable[[], Any]
+    help: Optional[str] = None
+
+
 class GlobalCommands(Provider):
     """A command provider for the command palette."""
-
-    @dataclass
-    class CustomCommand:
-        name: str
-        command: Callable[[], Any]
-        help: Optional[str] = None
 
     COMMANDS: list[CustomCommand] = []
 
@@ -37,7 +38,7 @@ class GlobalCommands(Provider):
     async def startup(self) -> None:
         """Called once when the command palette is opened, prior to searching."""
         self.COMMANDS = [
-            GlobalCommands.CustomCommand(
+            CustomCommand(
                 "Scan for collections",
                 self.scan_collections,
                 "The config is based on the current working directory.",
@@ -77,7 +78,7 @@ class CommandPalette(BaseCommandPalette):
     def __init__(self):
         super().__init__(
             providers=[SystemCommandsProvider, GlobalCommands],
-            placeholder="Search collections",
+            placeholder="Search commands...",
         )
 
     def compose(self) -> ComposeResult:
@@ -88,7 +89,7 @@ class CommandPalette(BaseCommandPalette):
         """
         with Vertical(id="--container"):
             with Horizontal(id="--input") as container:
-                container.border_title = "Collection Picker"
+                container.border_title = "Command Palette"
                 yield SearchIcon()
                 yield CommandInput(placeholder=self._placeholder)
                 if not self.run_on_select:
