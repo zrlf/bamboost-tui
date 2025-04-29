@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import MutableMapping
+from typing import Generic, MutableMapping, TypeVar, cast
 
 from textual import events
 from textual.app import App
@@ -16,6 +16,7 @@ def get_index():
 
 
 Subgroup = MutableMapping[str, "Binding  | Subgroup"]  # recursive
+SelfWidgetMixin = TypeVar("SelfWidgetMixin", bound="Widget | KeySubgroupsMixin")
 
 
 class KeySubgroupsMixin:
@@ -62,15 +63,7 @@ class KeySubgroupsMixin:
             event.prevent_default()
             event.stop()
             self._active_subgroup = None
-            # split action into method and args "do_something(arg1, arg2)"
-            import re
-
-            match = re.match(r"(\w+)\((.*)\)", item.action)
-            if match:
-                method, args = match.groups()
-                await getattr(self, f"action_{method}")(args)
-            else:
-                await getattr(self, f"action_{item.action}")()
+            await cast("Widget", self).run_action(item.action)
             return True
 
         self._active_subgroup = item
