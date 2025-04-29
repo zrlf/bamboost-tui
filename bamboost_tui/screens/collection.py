@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import subprocess
 from datetime import datetime
 from itertools import chain, cycle
@@ -12,6 +13,7 @@ from rich.text import Text
 from textual import on, work
 from textual.binding import Binding
 from textual.color import Color
+from textual.command import Command, Hit
 from textual.containers import Center, Container, Horizontal, Right
 from textual.coordinate import Coordinate
 from textual.geometry import Offset, Region
@@ -206,6 +208,7 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
         Binding("s", "sort_column", "sort column", show=False),
         Binding("d", "delete", "delete simulation", show=False),
         Binding("o>p", "open_paraview", "open paraview", show=False),
+        Binding("o>d", "open_directory", "open directory in editor", show=False),
         Binding("c>s", "sync", "sync collection with fs", show=False),
     ]
     BINDING_GROUP_TITLE = "Collection commands"
@@ -392,7 +395,17 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
 
         path = get_index()._get_collection_path(self.uid).joinpath(name)  # pyright: ignore[reportArgumentType]
         path = path.joinpath("data.xdmf")
-        subprocess.run(["paraview", path.as_posix()])
+        subprocess.Popen(["paraview", path.as_posix()])
+
+    def action_open_directory(self):
+        row_key = self._row_locations.get_key(self.cursor_row)
+        assert row_key is not None, "No simulation selected."
+        name = row_key.value
+        assert name is not None, "No simulation selected."
+
+        path = get_index()._get_collection_path(self.uid).joinpath(name)
+        with self.app.suspend():
+            subprocess.run([os.getenv("EDITOR", "vi"), path.as_posix()])
 
     async def action_reload(self):
         previous_coordinate = self.cursor_coordinate
@@ -410,7 +423,7 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
         # move cursor to previous position
         self.cursor_coordinate = previous_coordinate
 
-        self.notify("✔️ Reloaded data", timeout=0.5)
+        self.notify("✔️ Reloaded data", timeout=1.0)
 
     async def action_sync(self):
         index = get_index()
@@ -418,7 +431,7 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
         index.resolve_path(self.uid)
         # sync the collection
         index.sync_collection(self.uid)
-        self.notify("✔️ Synced collection", timeout=0.5)
+        self.notify("✔️ Synced collection", timeout=1.0)
         # reload the collection
         await self.action_reload()
 
