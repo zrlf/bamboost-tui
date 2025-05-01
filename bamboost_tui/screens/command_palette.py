@@ -21,29 +21,38 @@ if TYPE_CHECKING:
 @dataclass
 class CustomCommand:
     name: str
-    command: Callable[[], Any]
+    command: Callable[[GlobalCommands], Any]
     help: Optional[str] = None
+
+
+_commands: list[CustomCommand] = []
+
+
+def _add_command(name: str, help: Optional[str] = None) -> Callable:
+    """Decorator to add a command to the command palette."""
+
+    def decorator(method: Callable) -> Callable:
+        _commands.append(CustomCommand(name, method, help))
+        return method
+
+    return decorator
 
 
 class GlobalCommands(Provider):
     """A command provider for the command palette."""
 
-    COMMANDS: list[CustomCommand] = []
-
-    def scan_collections(self) -> None:
-        """Scan for collections."""
-        get_index().scan_for_collections()
-        self.app.notify("✔️ Scanned for collections")
+    COMMANDS: list[CustomCommand] = _commands
 
     async def startup(self) -> None:
         """Called once when the command palette is opened, prior to searching."""
-        self.COMMANDS = [
-            CustomCommand(
-                "Scan for collections",
-                self.scan_collections,
-                "The config is based on the current working directory.",
-            ),
-        ]
+        pass
+        # self.COMMANDS = [
+        #     CustomCommand(
+        #         "Scan for collections",
+        #         self.scan_collections,
+        #         "The config is based on the current working directory.",
+        #     ),
+        # ]
 
     async def search(self, query: str) -> Hits:
         matcher = self.matcher(query)
@@ -51,7 +60,10 @@ class GlobalCommands(Provider):
             score = matcher.match(cmd.name)
             if score > 0:
                 yield Hit(
-                    score, matcher.highlight(cmd.name), cmd.command, help=cmd.help
+                    score,
+                    matcher.highlight(cmd.name),
+                    lambda: cmd.command(self),
+                    help=cmd.help,
                 )
 
     async def discover(self) -> Hits:
@@ -59,9 +71,17 @@ class GlobalCommands(Provider):
         for cmd in self.COMMANDS:
             yield DiscoveryHit(
                 cmd.name,
-                cmd.command,
+                lambda: cmd.command(self),
                 help=cmd.help,
             )
+
+    @_add_command(
+        "Scan for collections", "The config is based on the current working directory."
+    )
+    def scan_collections(self) -> None:
+        """Scan for collections."""
+        get_index().scan_for_collections()
+        self.app.notify("✔️ Scanned for collections")
 
 
 class CommandPalette(BaseCommandPalette):
