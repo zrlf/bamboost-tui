@@ -75,7 +75,7 @@ class BamboostApp(App):
 
     async def action_toggle_help_panel(self):
         try:
-            await self.query_one(HelpPanel).remove()
+            await self.screen.query_one(HelpPanel).remove()
         except NoMatches:
             self.action_show_help_panel()
 
