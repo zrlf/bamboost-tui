@@ -1,12 +1,12 @@
 [project]
 name = "bamboost-tui"
 version = "0.1.0"
-description = "Add your description here"
+description = "A terminal user interface for bamboost. A tool to view and manage simulation data."
 readme = "README.md"
 authors = [
     { name = "florez", email = "florez@ethz.ch" }
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
     "bamboost",
     "sqlalchemy>=2.0.37",
@@ -21,18 +21,11 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.pyright]
-pythonVersion = "3.9"
+pythonVersion = "3.10"
 pythonPlatform = "Linux"
 typeCheckingMode = "basic"
 reportOptionalMemberAccess = false
 reportOptionalSubscript = false
-
-[tool.bamboost.index]
-isolated = true
-
-[tool.bamboost.options]
-mpi = true
-sortTableKey = "created_at"
 
 [tool.uv.sources]
 bamboost = { path = "../bamboost@next", editable = true }
@@ -40,5 +33,6 @@ textual-autocomplete = { path = "../../../dev/textual-autocomplete", editable = 
 
 [dependency-groups]
 dev = [
+    "commitizen>=4.8.2",
     "textual-dev>=1.7.0",
 ]
