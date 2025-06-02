@@ -22,17 +22,18 @@ if TYPE_CHECKING:
 class CustomCommand:
     name: str
     command: Callable[[GlobalCommands], Any]
+    label: str
     help: Optional[str] = None
 
 
 _commands: list[CustomCommand] = []
 
 
-def _add_command(name: str, help: Optional[str] = None) -> Callable:
+def _add_command(name: str, label: str, help: Optional[str] = None) -> Callable:
     """Decorator to add a command to the command palette."""
 
     def decorator(method: Callable) -> Callable:
-        _commands.append(CustomCommand(name, method, help))
+        _commands.append(CustomCommand(name, method, label, help))
         return method
 
     return decorator
@@ -76,7 +77,9 @@ class GlobalCommands(Provider):
             )
 
     @_add_command(
-        "Scan for collections", "The config is based on the current working directory."
+        "scan_collections",
+        label="Scan for collections",
+        help="The config is based on the current working directory.",
     )
     def scan_collections(self) -> None:
         """Scan for collections."""

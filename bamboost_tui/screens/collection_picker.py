@@ -132,6 +132,7 @@ class CollectionProvider(Provider):
             # yield Hit(1.0, self._render(coll), self.app.pop_screen)
             yield CollectionHit(1.0, coll, self)
 
+
 class RemoteCollectionProvider(CollectionProvider):
     async def startup(self) -> None:
         from bamboost.index import Index
@@ -150,6 +151,7 @@ class RemoteCollectionProvider(CollectionProvider):
             "command-palette--help-text", partial=True
         )
         from bamboost.core.remote import Remote
+
         self.collections = Remote()
         widths = (0, 0, 0)
         for coll in self.collections:
@@ -160,6 +162,7 @@ class RemoteCollectionProvider(CollectionProvider):
                 )
             )
         self._widths = widths
+
 
 class CollectionPicker(CommandPalette):
     BINDINGS = [
@@ -173,7 +176,9 @@ class CollectionPicker(CommandPalette):
     }
 
     def __init__(self):
-        super().__init__(providers=[CollectionProvider], placeholder="Search collections")
+        super().__init__(
+            providers=[CollectionProvider], placeholder="Search collections"
+        )
 
     def compose(self) -> ComposeResult:
         """Compose the command palette.

@@ -13,7 +13,6 @@ from rich.text import Text
 from textual import on, work
 from textual.binding import Binding
 from textual.color import Color
-from textual.command import Command, Hit
 from textual.containers import Center, Container, Horizontal, Right
 from textual.coordinate import Coordinate
 from textual.geometry import Offset, Region
@@ -215,9 +214,6 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
     COMPONENT_CLASSES = DataTable.COMPONENT_CLASSES | {
         "datatable--label",
     }
-    HELP = """
-    Explore your simulations in this collection. Enter to view the respective HDF file.
-    """
     DEFAULT_CSS = """
     CollectionTable {
         layers: bottom top;
