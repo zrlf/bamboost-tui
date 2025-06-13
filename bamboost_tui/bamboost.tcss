@@ -11,10 +11,12 @@ $background-cp: transparent;
 # TOAST
 # ---------------------------------------------
 Toast {
-    background: $surface;
-    padding: 0 1;
+    background: $background-cp;
+    border: round $border;
+    padding: 1 1;
     margin: 0;
 }
+
 Rule {
     margin: 0;
     color: $foreground;
@@ -172,7 +174,7 @@ LoadingIndicator {
 # DATATABLE
 # ---------------------------------------------
 CollectionTable {
-    background: $background;
+    background: $background-cp;
     scrollbar-size: 0 1;
 
     &:focus {
@@ -355,6 +357,11 @@ HDFViewer {
 # ---------------------------------------------
 CommandPalette {
   background: transparent;
+  & > .command-palette--highlight {
+    background: $accent;
+    color: $surface;
+    text-style: bold;
+  }
 
   &>Vertical {
     margin-top: 2;
@@ -458,6 +465,9 @@ CommandList {
 # -------------------------
 # PICKER
 # -------------------------
+CommandPalette  {
+}
+
 CollectionPicker {
     #--input {
         border: round $secondary;
@@ -513,5 +523,3 @@ ModalPrompt {
         background: $background;
     }
 }
-
-
