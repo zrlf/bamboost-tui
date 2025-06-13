@@ -26,6 +26,7 @@ pythonPlatform = "Linux"
 typeCheckingMode = "basic"
 reportOptionalMemberAccess = false
 reportOptionalSubscript = false
+useLibraryCodeForTypes = true
 
 [tool.uv.sources]
 bamboost = { path = "../bamboost@next", editable = true }
