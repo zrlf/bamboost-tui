@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from textual.app import ComposeResult
 from textual.binding import Binding
@@ -12,79 +10,40 @@ from textual.containers import Horizontal, Vertical
 from textual.system_commands import SystemCommandsProvider
 from textual.widgets import Button, LoadingIndicator
 
-from bamboost_tui.utils import get_index
-
-if TYPE_CHECKING:
-    pass
+from bamboost_tui.command_registry import command_registry, Command
 
 
-@dataclass
-class CustomCommand:
-    name: str
-    command: Callable[[GlobalCommands], Any]
-    label: str
-    help: Optional[str] = None
-
-
-_commands: list[CustomCommand] = []
-
-
-def _add_command(name: str, label: str, help: Optional[str] = None) -> Callable:
-    """Decorator to add a command to the command palette."""
-
-    def decorator(method: Callable) -> Callable:
-        _commands.append(CustomCommand(name, method, label, help))
-        return method
-
-    return decorator
-
-
-class GlobalCommands(Provider):
+class AppCommands(Provider):
     """A command provider for the command palette."""
 
-    COMMANDS: list[CustomCommand] = _commands
+    def get_commands(self) -> list[Command]:
+        return command_registry
 
     async def startup(self) -> None:
         """Called once when the command palette is opened, prior to searching."""
         pass
-        # self.COMMANDS = [
-        #     CustomCommand(
-        #         "Scan for collections",
-        #         self.scan_collections,
-        #         "The config is based on the current working directory.",
-        #     ),
-        # ]
 
     async def search(self, query: str) -> Hits:
         matcher = self.matcher(query)
-        for cmd in self.COMMANDS:
-            score = matcher.match(cmd.name)
+        for cmd in self.get_commands():
+            score = matcher.match(cmd.label)
             if score > 0:
                 yield Hit(
                     score,
-                    matcher.highlight(cmd.name),
-                    lambda: cmd.command(self),
-                    help=cmd.help,
+                    matcher.highlight(cmd.label),
+                    lambda cmd=cmd: cmd.func(self.app),
+                    help=rf"{cmd.name} \[{cmd.key}] / {cmd.help}",
                 )
 
     async def discover(self) -> Hits:
         """Called when the command palette is opened, prior to searching."""
-        for cmd in self.COMMANDS:
+        for cmd in self.get_commands():
             yield DiscoveryHit(
-                cmd.name,
-                lambda: cmd.command(self),
-                help=cmd.help,
+                cmd.label,
+                lambda cmd=cmd: cmd.func(self.app),
+                text=cmd.label,
+                help=rf"{cmd.name} \[{cmd.key}] / {cmd.help}",
             )
-
-    @_add_command(
-        "scan_collections",
-        label="Scan for collections",
-        help="The config is based on the current working directory.",
-    )
-    def scan_collections(self) -> None:
-        """Scan for collections."""
-        get_index().scan_for_collections()
-        self.app.notify("✔️ Scanned for collections")
 
 
 class CommandPalette(BaseCommandPalette):
@@ -100,7 +59,7 @@ class CommandPalette(BaseCommandPalette):
 
     def __init__(self):
         super().__init__(
-            providers=[SystemCommandsProvider, GlobalCommands],
+            providers=[SystemCommandsProvider, AppCommands],
             placeholder="Search commands...",
         )
 

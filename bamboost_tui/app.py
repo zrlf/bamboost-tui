@@ -5,37 +5,12 @@ from textual import work
 from textual.app import App
 from textual.binding import Binding
 from textual.css.query import NoMatches
-from textual.theme import BUILTIN_THEMES, Theme
 from textual.widgets import HelpPanel
 
 from bamboost_tui.screens.collection import ScreenCollection
-from bamboost_tui.screens.command_palette import CommandPalette
-
-ansi_theme = Theme(
-    name="ansi",
-    primary="ansi_blue",
-    secondary="ansi_magenta",
-    accent="ansi_yellow",
-    foreground="ansi_bright_white",
-    background="ansi_default",
-    success="ansi_bright_green",
-    warning=BUILTIN_THEMES["textual-dark"].warning,
-    error="ansi_red",
-    surface="ansi_black",
-    panel="ansi_bright_black",
-    boost="ansi_bright_green",
-    dark=True,
-    variables={
-        "foreground-muted": "ansi_white",
-        "input-cursor-background": "ansi_black",
-        "input-cursor-foreground": "ansi_white",
-        "block-cursor-background": "ansi_black",
-        "block-cursor-foreground": "ansi_white",
-        "border": "ansi_bright_black",
-        "border-focus": "ansi_blue",
-        "footer-background": "ansi_black",
-    },
-)
+from bamboost_tui.command_palette import CommandPalette
+from bamboost_tui.command_registry import command_registry
+from bamboost_tui.theme import ANSI_THEME
 
 
 class BamboostApp(App):
@@ -50,9 +25,24 @@ class BamboostApp(App):
     ]
     ENABLE_COMMAND_PALETTE = False
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # bind the keys from the command_registry
+
+        for cmd in command_registry:
+            if cmd.key:
+
+                def _action_func(self=self, cmd=cmd) -> None:
+                    return cmd.func(self)
+
+                func_name = cmd.name.replace(".", "_")
+                self.__setattr__(f"action_{func_name}", _action_func)
+                self.bind(cmd.key, func_name, description=cmd.label, show=False)
+
     def on_mount(self) -> None:
         if ansi_colors_set := self.ansi_color:
-            self.register_theme(ansi_theme)
+            self.register_theme(ANSI_THEME)
             self.theme = "ansi"
             self.ansi_color = ansi_colors_set
         else:
@@ -67,12 +57,12 @@ class BamboostApp(App):
     @work(thread=True)
     async def _preload_modules(self) -> None:
         # Import in a thread to avoid blocking the event loop
-        import bamboost.core.hdf5.attrsdict
-        import bamboost.core.hdf5.file
-        import bamboost.core.simulation
-        import bamboost.index
-        import h5py
-        import pandas
+        import bamboost.core.hdf5.attrsdict  # noqa: F401
+        import bamboost.core.hdf5.file  # noqa: F401
+        import bamboost.core.simulation  # noqa: F401
+        import bamboost.index  # noqa: F401
+        import h5py  # noqa: F401
+        import pandas  # noqa: F401
 
     async def action_toggle_help_panel(self):
         try:
