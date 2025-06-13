@@ -290,14 +290,14 @@ class Navigation(
     NavigationStatic, KeySubgroupsMixin, can_focus=True, inherit_bindings=False
 ):
     BINDINGS = [
-        Binding("j,down", "cursor_down"),
-        Binding("k,up", "cursor_up"),
-        Binding("l,right,enter", "cursor_right", "Move into group"),
-        Binding("h,left,escape", "cursor_left", "Move out of group"),
-        Binding("g>g", "cursor_top", "Go to top"),
-        Binding("G", "cursor_bottom", "Go to bottom"),
-        Binding("ctrl+d", "page_down", "Scroll down"),
-        Binding("ctrl+u", "page_up", "Scroll up"),
+        Binding("j,down", "cursor_down", show=False),
+        Binding("k,up", "cursor_up", show=False),
+        Binding("l,right,enter", "cursor_right", "Move into group", show=False),
+        Binding("h,left,escape", "cursor_left", "Move out of group", show=False),
+        Binding("g>g", "cursor_top", "Go to top", show=False),
+        Binding("G", "cursor_bottom", "Go to bottom", show=False),
+        Binding("ctrl+d", "page_down", "Scroll down", show=False),
+        Binding("ctrl+u", "page_up", "Scroll up", show=False),
     ]
     BINDING_GROUP_TITLE = "Navigation Panel"
 

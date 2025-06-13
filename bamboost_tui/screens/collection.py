@@ -24,8 +24,8 @@ from textual.widgets.data_table import ColumnKey
 from typing_extensions import Self
 
 from bamboost_tui.commandline import CommandLine, CommandMessage
-from bamboost_tui.screens.collection_picker import CollectionHit, CollectionPicker
-from bamboost_tui.utils import KeySubgroupsMixin, get_index, variable_to_color
+from bamboost_tui.screens.collection_palette import CollectionHit, CollectionPicker
+from bamboost_tui.utils import KeySubgroupsMixin, get_index
 from bamboost_tui.widgets import ModifiedDataTable, SortOrder
 from bamboost_tui.widgets.confirmation import ModalPrompt
 

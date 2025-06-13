@@ -10,8 +10,8 @@ from textual.binding import Binding
 from textual.css.query import NoMatches
 from textual.widgets import HelpPanel
 
-from bamboost_tui.command_palette import CommandPalette
 from bamboost_tui.screens.collection import ScreenCollection
+from bamboost_tui.screens.keybind_palette import KeybindPalette
 from bamboost_tui.theme import ANSI_THEME
 from bamboost_tui.utils import get_index
 
@@ -27,7 +27,7 @@ class BamboostApp(App):
         Binding("Q", "quit", "exit"),
         Binding("?", "toggle_help_panel", "Show help", id="app.help"),
         Binding(
-            "ctrl+p", "command_palette", "Command palette", id="app.command_palette"
+            "ctrl+p", "command_palette", "Keybind picker", id="app.command_palette"
         ),
         Binding(
             "alt+ctrl+j",
@@ -35,6 +35,7 @@ class BamboostApp(App):
             "Clean the collection database",
             id="index.clean",
             system=True,
+            show=False,
         ),
         Binding(
             "alt+ctrl+s",
@@ -42,6 +43,7 @@ class BamboostApp(App):
             "Scan for collections",
             id="index.scan",
             system=True,
+            show=False,
         ),
     ]
     ENABLE_COMMAND_PALETTE = False
@@ -89,7 +91,7 @@ class BamboostApp(App):
             self.exit()
 
     def action_command_palette(self) -> None:
-        self.push_screen(CommandPalette())
+        self.push_screen(KeybindPalette())
 
     def action_scan_collections(self) -> None:
         """Scan for collections."""
