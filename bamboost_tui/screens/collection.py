@@ -208,7 +208,9 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
         Binding("d", "delete", "delete simulation", show=False),
         Binding("o>p", "open_paraview", "open paraview", show=False),
         Binding("o>d", "open_directory", "open directory in editor", show=False),
-        Binding("c>s", "sync", "sync collection with fs", show=False),
+        Binding(
+            "c>s", "sync", "sync collection with fs", show=False, id="collection.sync"
+        ),
     ]
     BINDING_GROUP_TITLE = "Collection commands"
     COMPONENT_CLASSES = DataTable.COMPONENT_CLASSES | {
@@ -434,22 +436,22 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
 
 class ScreenCollection(Screen, inherit_bindings=False):
     BINDINGS = [
-        Binding("ctrl+m", "toggle_picker", "toggle the collection picker"),
+        Binding(
+            "ctrl+m",
+            "toggle_picker",
+            "toggle the collection picker",
+            id="collection.toggle_picker",
+        ),
         Binding(
             "ctrl+t",
             "cycle_tabs",
-            "cycle through tabs",
+            "cycle through collection tabs",
             show=False,
             id="collection.cycle_tabs",
         ),
         Binding("q", "close", "close collection", show=False),
     ]
     BINDING_GROUP_TITLE = "Screen commands"
-    DEFAULT_CSS = """
-    ScreenCollection {
-        layers: bottom top;
-    }
-    """
 
     _open_collections: dict[str, CollectionTable]
     current_uid: var[str | None] = var(None)
