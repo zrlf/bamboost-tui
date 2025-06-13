@@ -1,40 +1,21 @@
+# pyright: reportUnusedImport=false
 from __future__ import annotations
 
+from typing import Any, Mapping
+
+from bamboost import config
 from textual import work
 from textual.app import App
 from textual.binding import Binding
 from textual.css.query import NoMatches
-from textual.theme import BUILTIN_THEMES, Theme
 from textual.widgets import HelpPanel
 
 from bamboost_tui.screens.collection import ScreenCollection
-from bamboost_tui.screens.command_palette import CommandPalette
+from bamboost_tui.screens.keybind_palette import KeybindPalette
+from bamboost_tui.theme import ANSI_THEME
+from bamboost_tui.utils import get_index
 
-ansi_theme = Theme(
-    name="ansi",
-    primary="ansi_blue",
-    secondary="ansi_magenta",
-    accent="ansi_yellow",
-    foreground="ansi_bright_white",
-    background="ansi_default",
-    success="ansi_bright_green",
-    warning=BUILTIN_THEMES["textual-dark"].warning,
-    error="ansi_red",
-    surface="ansi_black",
-    panel="ansi_bright_black",
-    boost="ansi_bright_green",
-    dark=True,
-    variables={
-        "foreground-muted": "ansi_white",
-        "input-cursor-background": "ansi_black",
-        "input-cursor-foreground": "ansi_white",
-        "block-cursor-background": "ansi_black",
-        "block-cursor-foreground": "ansi_white",
-        "border": "ansi_bright_black",
-        "border-focus": "ansi_blue",
-        "footer-background": "ansi_black",
-    },
-)
+config_tui: Mapping[str, Any] = config._remainder.get("tui", {})
 
 
 class BamboostApp(App):
@@ -44,14 +25,37 @@ class BamboostApp(App):
         Binding("ctrl+z", "suspend_process", "suspend application", show=False),
         Binding("q", "pop_screen_or_exit", "quit screen"),
         Binding("Q", "quit", "exit"),
-        Binding("?", "toggle_help_panel", "Show help"),
-        Binding("ctrl+o", "command_palette", "Command palette"),
+        Binding("?", "toggle_help_panel", "Show help", id="app.help"),
+        Binding(
+            "ctrl+p", "command_palette", "Keybind picker", id="app.command_palette"
+        ),
+        Binding(
+            "alt+ctrl+j",
+            "clean_index",
+            "Clean the collection database",
+            id="index.clean",
+            system=True,
+            show=False,
+        ),
+        Binding(
+            "alt+ctrl+s",
+            "scan_collections",
+            "Scan for collections",
+            id="index.scan",
+            system=True,
+            show=False,
+        ),
     ]
     ENABLE_COMMAND_PALETTE = False
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # set the keymap from the config
+        self.set_keymap(config_tui.get("keys", {}))
+
     def on_mount(self) -> None:
         if ansi_colors_set := self.ansi_color:
-            self.register_theme(ansi_theme)
+            self.register_theme(ANSI_THEME)
             self.theme = "ansi"
             self.ansi_color = ansi_colors_set
         else:
@@ -66,12 +70,12 @@ class BamboostApp(App):
     @work(thread=True)
     async def _preload_modules(self) -> None:
         # Import in a thread to avoid blocking the event loop
-        import bamboost.core.hdf5.attrsdict
-        import bamboost.core.hdf5.file
-        import bamboost.core.simulation
-        import bamboost.index
-        import h5py
-        import pandas
+        import bamboost.core.hdf5.attrsdict  # noqa: F401
+        import bamboost.core.hdf5.file  # noqa: F401
+        import bamboost.core.simulation  # noqa: F401
+        import bamboost.index  # noqa: F401
+        import h5py  # noqa: F401
+        import pandas  # noqa: F401
 
     async def action_toggle_help_panel(self):
         try:
@@ -87,7 +91,16 @@ class BamboostApp(App):
             self.exit()
 
     def action_command_palette(self) -> None:
-        self.push_screen(CommandPalette())
+        self.push_screen(KeybindPalette())
+
+    def action_scan_collections(self) -> None:
+        """Scan for collections."""
+        get_index().scan_for_collections()
+        self.notify("✔️ Scanned for collections")
+
+    def action_clean_index(self) -> None:
+        get_index().check_integrity()
+        self.notify("⚪ Cleaned index")
 
 
 if __name__ == "__main__":

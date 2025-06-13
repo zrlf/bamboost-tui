@@ -1,34 +1,19 @@
 from __future__ import annotations
 
-from time import monotonic
 from typing import TYPE_CHECKING
 
 from rich.console import Group
 from rich.style import Style as RichStyle
 from rich.table import Column, Table
 from rich.text import Text
-from textual import work
 from textual._context import active_app
-from textual.app import ComposeResult
-from textual.binding import Binding
-from textual.command import (
-    Command,
-    CommandInput,
-    CommandList,
-    CommandPalette,
-    Hit,
-    Hits,
-    Matcher,
-    Provider,
-    SearchIcon,
-)
-from textual.containers import Horizontal, Vertical
+from textual.command import Hit, Hits, Matcher, Provider
 from textual.message import Message
 from textual.screen import Screen
 from textual.style import Style
 from textual.visual import VisualType
-from textual.widgets import Button, LoadingIndicator
-from textual.worker import get_current_worker
+
+from bamboost_tui.command_palette import CommandPalette
 
 if TYPE_CHECKING:
     from bamboost.index.sqlmodel import CollectionORM
@@ -132,10 +117,9 @@ class CollectionProvider(Provider):
             # yield Hit(1.0, self._render(coll), self.app.pop_screen)
             yield CollectionHit(1.0, coll, self)
 
+
 class RemoteCollectionProvider(CollectionProvider):
     async def startup(self) -> None:
-        from bamboost.index import Index
-
         app = active_app.get()
         self.styles["uid"] = app.screen.get_component_rich_style(
             "collection-list--uid", partial=True
@@ -150,6 +134,7 @@ class RemoteCollectionProvider(CollectionProvider):
             "command-palette--help-text", partial=True
         )
         from bamboost.core.remote import Remote
+
         self.collections = Remote()
         widths = (0, 0, 0)
         for coll in self.collections:
@@ -161,11 +146,8 @@ class RemoteCollectionProvider(CollectionProvider):
             )
         self._widths = widths
 
+
 class CollectionPicker(CommandPalette):
-    BINDINGS = [
-        Binding("ctrl+n", "cursor_down", "move cursor down", show=False),
-        Binding("ctrl+p", "command_list('cursor_up')", "move cursor up", show=False),
-    ]
     COMPONENT_CLASSES = CommandPalette.COMPONENT_CLASSES | {
         "collection-list--uid",
         "collection-list--path",
@@ -173,91 +155,8 @@ class CollectionPicker(CommandPalette):
     }
 
     def __init__(self):
-        super().__init__(providers=[CollectionProvider], placeholder="Search collections")
-
-    def compose(self) -> ComposeResult:
-        """Compose the command palette.
-
-        Returns:
-            The content of the screen.
-        """
-        with Vertical(id="--container"):
-            with Horizontal(id="--input") as container:
-                container.border_title = "Collection Picker"
-                yield SearchIcon()
-                yield CommandInput(placeholder=self._placeholder)
-                if not self.run_on_select:
-                    yield Button("\u25b6")
-            with Vertical(id="--results"):
-                yield CommandList()
-                yield LoadingIndicator()
-
-    @work(exclusive=True, group=CommandPalette._GATHER_COMMANDS_GROUP)
-    async def _gather_commands(self, search_value: str) -> None:
-        """Gather up all of the commands that match the search value.
-
-        Args:
-            search_value: The value to search for.
-        """
-        gathered_commands: list[Command] = []
-        command_list = self.query_one(CommandList)
-        if (
-            command_list.option_count == 1
-            and command_list.get_option_at_index(0).id == self._NO_MATCHES
-        ):
-            command_list.remove_option(self._NO_MATCHES)
-
-        command_id = 0
-        worker = get_current_worker()
-
-        # Reset busy mode.
-        self._show_busy = False
-        clear_current = True
-        last_update = monotonic()
-
-        # Kick off the search, grabbing the iterator.
-        search_routine = self._search_for(search_value)
-        search_results = search_routine.__aiter__()
-
-        # We're going to be doing the send/await dance in this code, so we
-        # need to grab the first yielded command to start things off.
-        try:
-            hit = await search_results.__anext__()
-        except StopAsyncIteration:
-            hit = None
-
-        while hit:
-            # NEEDED TO CHANGE THIS LINE. RENDER THE PROMPT DIRECTLY
-            prompt = hit.prompt
-
-            gathered_commands.append(Command(prompt, hit, id=str(command_id)))
-
-            if worker.is_cancelled:
-                break
-
-            now = monotonic()
-            if (now - last_update) > self._RESULT_BATCH_TIME:
-                self._refresh_command_list(
-                    command_list, gathered_commands, clear_current
-                )
-                clear_current = False
-                last_update = now
-
-            command_id += 1
-
-            try:
-                hit = await search_routine.asend(worker.is_cancelled)
-            except StopAsyncIteration:
-                break
-
-        if not worker.is_cancelled:
-            self._refresh_command_list(command_list, gathered_commands, clear_current)
-
-        # One way or another, we're not busy any more.
-        self._show_busy = False
-
-        if command_list.option_count == 0 and not worker.is_cancelled:
-            self._hit_count = 0
-            self._start_no_matches_countdown(search_value)
-
-        self.add_class("-ready")
+        super().__init__(
+            providers=[CollectionProvider],
+            placeholder="Search collections",
+            id="collection-picker",
+        )

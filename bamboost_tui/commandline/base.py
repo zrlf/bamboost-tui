@@ -23,7 +23,8 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal
 from textual.message import Message
-from textual.screen import Screen
+from textual.screen import ModalScreen, Screen
+from textual.widget import Widget
 from textual.widgets import Input, Label
 from textual.widgets.data_table import ColumnKey
 from typing_extensions import Self
@@ -247,14 +248,14 @@ class Parser:
         return self._commands[args.command].set_parsed_values(args)
 
 
-class CommandLine(Screen):
+class CommandLine(ModalScreen[CommandMessage]):
     BINDINGS = [
         Binding("escape", "dismiss"),
         Binding("enter", "execute", "do this thing"),
     ]
     DEFAULT_CSS = """
     CommandLine {
-        background: transparent;
+        background: $background;
 
         & > Horizontal {
             width: 100%;
@@ -299,7 +300,7 @@ class CommandLine(Screen):
 
     def compose(self) -> ComposeResult:
         with Horizontal(id="command-line"):
-            yield Label(self.label)
+            yield Label(self.label, disabled=True)
             yield CommandLineInput(placeholder=self.placeholder)
 
     def on_mount(self) -> None:

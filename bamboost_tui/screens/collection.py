@@ -13,7 +13,6 @@ from rich.text import Text
 from textual import on, work
 from textual.binding import Binding
 from textual.color import Color
-from textual.command import Command, Hit
 from textual.containers import Center, Container, Horizontal, Right
 from textual.coordinate import Coordinate
 from textual.geometry import Offset, Region
@@ -25,7 +24,7 @@ from textual.widgets.data_table import ColumnKey
 from typing_extensions import Self
 
 from bamboost_tui.commandline import CommandLine, CommandMessage
-from bamboost_tui.screens.collection_picker import CollectionHit, CollectionPicker
+from bamboost_tui.screens.collection_palette import CollectionHit, CollectionPicker
 from bamboost_tui.utils import KeySubgroupsMixin, get_index
 from bamboost_tui.widgets import ModifiedDataTable, SortOrder
 from bamboost_tui.widgets.confirmation import ModalPrompt
@@ -129,12 +128,12 @@ class Placeholder(Static):
         with Center():
             yield Static(
                 dedent("""
-                            dP                           dP                                    dP  
-                            88                           88                                    88  
+                            dP                           dP                                    dP
+                            88                           88                                    88
                             88d888b. .d8888b. 88d8b.d8b. 88d888b. .d8888b. .d8888b. .d8888b. d8888P
-                            88'  `88 88'  `88 88'`88'`88 88'  `88 88'  `88 88'  `88 Y8ooooo.   88  
-                            88.  .88 88.  .88 88  88  88 88.  .88 88.  .88 88.  .88       88   88  
-                            88Y8888' `88888P8 dP  dP  dP 88Y8888' `88888P' `88888P' `88888P'   dP  
+                            88'  `88 88'  `88 88'`88'`88 88'  `88 88'  `88 88'  `88 Y8ooooo.   88
+                            88.  .88 88.  .88 88  88  88 88.  .88 88.  .88 88.  .88       88   88
+                            88Y8888' `88888P8 dP  dP  dP 88Y8888' `88888P' `88888P' `88888P'   dP
                         """),
                 classes="logo",
             )
@@ -209,15 +208,14 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
         Binding("d", "delete", "delete simulation", show=False),
         Binding("o>p", "open_paraview", "open paraview", show=False),
         Binding("o>d", "open_directory", "open directory in editor", show=False),
-        Binding("c>s", "sync", "sync collection with fs", show=False),
+        Binding(
+            "c>s", "sync", "sync collection with fs", show=False, id="collection.sync"
+        ),
     ]
     BINDING_GROUP_TITLE = "Collection commands"
     COMPONENT_CLASSES = DataTable.COMPONENT_CLASSES | {
         "datatable--label",
     }
-    HELP = """
-    Explore your simulations in this collection. Enter to view the respective HDF file.
-    """
     DEFAULT_CSS = """
     CollectionTable {
         layers: bottom top;
@@ -438,16 +436,22 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
 
 class ScreenCollection(Screen, inherit_bindings=False):
     BINDINGS = [
-        Binding("ctrl+m", "toggle_picker", "toggle the collection picker"),
-        Binding("ctrl+t", "cycle_tabs", "cycle through tabs", show=False),
+        Binding(
+            "ctrl+m",
+            "toggle_picker",
+            "toggle the collection picker",
+            id="collection.toggle_picker",
+        ),
+        Binding(
+            "ctrl+t",
+            "cycle_tabs",
+            "cycle through collection tabs",
+            show=False,
+            id="collection.cycle_tabs",
+        ),
         Binding("q", "close", "close collection", show=False),
     ]
     BINDING_GROUP_TITLE = "Screen commands"
-    DEFAULT_CSS = """
-    ScreenCollection {
-        layers: bottom top;
-    }
-    """
 
     _open_collections: dict[str, CollectionTable]
     current_uid: var[str | None] = var(None)

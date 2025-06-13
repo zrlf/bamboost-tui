@@ -11,27 +11,25 @@ $background-cp: transparent;
 # TOAST
 # ---------------------------------------------
 Toast {
-    background: $surface;
-    padding: 0 1;
+    background: $background-cp;
+    border: round $border;
+    padding: 1 1;
     margin: 0;
 }
+
 Rule {
     margin: 0;
     color: $foreground;
 }
 
 Footer {
-    background: $surface;
+    background: $background;
     grid-gutter: 0;
-    padding-left: 1;
 
     & .footer-key--key {
-        background: $surface;
-        padding-right: 1;
         color: $accent;
     }
     & .footer-key--description {
-        background: $surface;
         color: $foreground-muted;
         opacity: 0.3;
     }
@@ -60,7 +58,7 @@ HelpPanel {
             background: ansi_default;
         }
     }
-  
+
     #title {
         width: 1fr;
         text-align: center;
@@ -68,7 +66,7 @@ HelpPanel {
         dock: top;
         display: none;
     }
-    
+
     #widget-help {
         height: auto;
         max-height: 50%;
@@ -100,7 +98,7 @@ HelpPanel {
         height: 1fr;
         min-width: initial;
         split: initial;
-        border-left: none;          
+        border-left: none;
         padding: 0;
         scrollbar-size-vertical: 1;
         scrollbar-background: $background;
@@ -117,7 +115,7 @@ BindingsTable > .bindings-table--header {
     color: $accent;
 }
 
-    
+
 
 
 # ---------------------------------------------
@@ -125,7 +123,13 @@ BindingsTable > .bindings-table--header {
 # ---------------------------------------------
 CommandLine {
     align: left bottom;
-    background: transparent;
+
+    & > Horizontal {
+        width: 100%;
+        align: center middle;
+        height: 1;
+        background: $background;
+    }
 
     & > Horizontal > Label {
         margin: 0 1;
@@ -136,7 +140,6 @@ CommandLineInput {
     padding: 0 0;
     background: transparent;
     height: 1;
-    width: 100%;
 }
 AutoComplete {
 }
@@ -172,7 +175,7 @@ LoadingIndicator {
 # DATATABLE
 # ---------------------------------------------
 CollectionTable {
-    background: $background;
+    background: $background-cp;
     scrollbar-size: 0 1;
 
     &:focus {
@@ -355,6 +358,11 @@ HDFViewer {
 # ---------------------------------------------
 CommandPalette {
   background: transparent;
+  & > .command-palette--highlight {
+    background: $accent;
+    color: $surface;
+    text-style: bold;
+  }
 
   &>Vertical {
     margin-top: 2;
@@ -458,6 +466,9 @@ CommandList {
 # -------------------------
 # PICKER
 # -------------------------
+CommandPalette  {
+}
+
 CollectionPicker {
     #--input {
         border: round $secondary;
@@ -513,5 +524,3 @@ ModalPrompt {
         background: $background;
     }
 }
-
-
