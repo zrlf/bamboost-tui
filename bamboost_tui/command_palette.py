@@ -5,44 +5,44 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.command import CommandInput, CommandList
 from textual.command import CommandPalette as BaseCommandPalette
-from textual.command import DiscoveryHit, Hit, Hits, Provider, SearchIcon
+from textual.command import Hit, Hits, Provider, SearchIcon
 from textual.containers import Horizontal, Vertical
+from textual.screen import Screen
 from textual.system_commands import SystemCommandsProvider
 from textual.widgets import Button, LoadingIndicator
 
-from bamboost_tui.command_registry import command_registry, Command
 
+class BindingsProvider(Provider):
+    """A command provider that exposes all Bindings from the app, screen, and widgets."""
 
-class AppCommands(Provider):
-    """A command provider for the command palette."""
-
-    def get_commands(self) -> list[Command]:
-        return command_registry
-
-    async def startup(self) -> None:
-        """Called once when the command palette is opened, prior to searching."""
-        pass
+    def get_all_bindings(self, screen: Screen):
+        return screen.active_bindings.values()
 
     async def search(self, query: str) -> Hits:
         matcher = self.matcher(query)
-        for cmd in self.get_commands():
-            score = matcher.match(cmd.label)
+        screen = self.app.screen_stack[-2]
+        for active_binding in self.get_all_bindings(screen):
+            binding = active_binding.binding
+            score = matcher.match(
+                binding.description + binding.key + (binding.id or "")
+            )
             if score > 0:
                 yield Hit(
                     score,
-                    matcher.highlight(cmd.label),
-                    lambda cmd=cmd: cmd.func(self.app),
-                    help=rf"{cmd.name} \[{cmd.key}] / {cmd.help}",
+                    matcher.highlight(binding.description or binding.key),
+                    lambda b=binding: self.app.simulate_key(b.key),
+                    help=f"{binding.key} / {binding.description or binding.action}",
                 )
 
     async def discover(self) -> Hits:
-        """Called when the command palette is opened, prior to searching."""
-        for cmd in self.get_commands():
-            yield DiscoveryHit(
-                cmd.label,
-                lambda cmd=cmd: cmd.func(self.app),
-                text=cmd.label,
-                help=rf"{cmd.name} \[{cmd.key}] / {cmd.help}",
+        screen = self.app.screen_stack[-2]
+        for active_binding in self.get_all_bindings(screen):
+            binding = active_binding.binding
+            yield Hit(
+                1,
+                binding.description or binding.key,
+                lambda b=binding: self.app.simulate_key(b.key),
+                help=f"{binding.key} / {binding.description or binding.action}",
             )
 
 
@@ -59,7 +59,7 @@ class CommandPalette(BaseCommandPalette):
 
     def __init__(self):
         super().__init__(
-            providers=[SystemCommandsProvider, AppCommands],
+            providers=[SystemCommandsProvider, BindingsProvider],
             placeholder="Search commands...",
         )
 

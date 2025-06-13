@@ -25,7 +25,7 @@ from typing_extensions import Self
 
 from bamboost_tui.commandline import CommandLine, CommandMessage
 from bamboost_tui.screens.collection_picker import CollectionHit, CollectionPicker
-from bamboost_tui.utils import KeySubgroupsMixin, get_index
+from bamboost_tui.utils import KeySubgroupsMixin, get_index, variable_to_color
 from bamboost_tui.widgets import ModifiedDataTable, SortOrder
 from bamboost_tui.widgets.confirmation import ModalPrompt
 
@@ -128,12 +128,12 @@ class Placeholder(Static):
         with Center():
             yield Static(
                 dedent("""
-                            dP                           dP                                    dP  
-                            88                           88                                    88  
+                            dP                           dP                                    dP
+                            88                           88                                    88
                             88d888b. .d8888b. 88d8b.d8b. 88d888b. .d8888b. .d8888b. .d8888b. d8888P
-                            88'  `88 88'  `88 88'`88'`88 88'  `88 88'  `88 88'  `88 Y8ooooo.   88  
-                            88.  .88 88.  .88 88  88  88 88.  .88 88.  .88 88.  .88       88   88  
-                            88Y8888' `88888P8 dP  dP  dP 88Y8888' `88888P' `88888P' `88888P'   dP  
+                            88'  `88 88'  `88 88'`88'`88 88'  `88 88'  `88 88'  `88 Y8ooooo.   88
+                            88.  .88 88.  .88 88  88  88 88.  .88 88.  .88 88.  .88       88   88
+                            88Y8888' `88888P8 dP  dP  dP 88Y8888' `88888P' `88888P' `88888P'   dP
                         """),
                 classes="logo",
             )
@@ -435,7 +435,13 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
 class ScreenCollection(Screen, inherit_bindings=False):
     BINDINGS = [
         Binding("ctrl+m", "toggle_picker", "toggle the collection picker"),
-        Binding("ctrl+t", "cycle_tabs", "cycle through tabs", show=False),
+        Binding(
+            "ctrl+t",
+            "cycle_tabs",
+            "cycle through tabs",
+            show=False,
+            id="collection.cycle_tabs",
+        ),
         Binding("q", "close", "close collection", show=False),
     ]
     BINDING_GROUP_TITLE = "Screen commands"

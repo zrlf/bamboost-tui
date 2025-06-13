@@ -1,16 +1,21 @@
 # pyright: reportUnusedImport=false
 from __future__ import annotations
 
+from typing import Any, Mapping
+
+from bamboost import config
 from textual import work
 from textual.app import App
 from textual.binding import Binding
 from textual.css.query import NoMatches
 from textual.widgets import HelpPanel
 
-from bamboost_tui.screens.collection import ScreenCollection
 from bamboost_tui.command_palette import CommandPalette
-from bamboost_tui.command_registry import command_registry
+from bamboost_tui.screens.collection import ScreenCollection
 from bamboost_tui.theme import ANSI_THEME
+from bamboost_tui.utils import get_index
+
+config_tui: Mapping[str, Any] = config._remainder.get("tui", {})
 
 
 class BamboostApp(App):
@@ -20,25 +25,31 @@ class BamboostApp(App):
         Binding("ctrl+z", "suspend_process", "suspend application", show=False),
         Binding("q", "pop_screen_or_exit", "quit screen"),
         Binding("Q", "quit", "exit"),
-        Binding("?", "toggle_help_panel", "Show help"),
-        Binding("ctrl+o", "command_palette", "Command palette"),
+        Binding("?", "toggle_help_panel", "Show help", id="app.help"),
+        Binding(
+            "ctrl+p", "command_palette", "Command palette", id="app.command_palette"
+        ),
+        Binding(
+            "alt+ctrl+j",
+            "clean_index",
+            "Clean the collection database",
+            id="index.clean",
+            system=True,
+        ),
+        Binding(
+            "alt+ctrl+s",
+            "scan_collections",
+            "Scan for collections",
+            id="index.scan",
+            system=True,
+        ),
     ]
     ENABLE_COMMAND_PALETTE = False
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-        # bind the keys from the command_registry
-
-        for cmd in command_registry:
-            if cmd.key:
-
-                def _action_func(self=self, cmd=cmd) -> None:
-                    return cmd.func(self)
-
-                func_name = cmd.name.replace(".", "_")
-                self.__setattr__(f"action_{func_name}", _action_func)
-                self.bind(cmd.key, func_name, description=cmd.label, show=False)
+        # set the keymap from the config
+        self.set_keymap(config_tui.get("keys", {}))
 
     def on_mount(self) -> None:
         if ansi_colors_set := self.ansi_color:
@@ -79,6 +90,15 @@ class BamboostApp(App):
 
     def action_command_palette(self) -> None:
         self.push_screen(CommandPalette())
+
+    def action_scan_collections(self) -> None:
+        """Scan for collections."""
+        get_index().scan_for_collections()
+        self.notify("✔️ Scanned for collections")
+
+    def action_clean_index(self) -> None:
+        get_index().check_integrity()
+        self.notify("⚪ Cleaned index")
 
 
 if __name__ == "__main__":
