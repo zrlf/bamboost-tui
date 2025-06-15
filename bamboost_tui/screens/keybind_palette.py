@@ -5,7 +5,9 @@ from textual._context import active_app
 from textual.app import App
 from textual.binding import Binding
 from textual.command import Hit, Hits, Matcher, Provider
+from textual.message import Message
 from textual.screen import Screen
+from textual.system_commands import SystemCommandsProvider
 from textual.visual import VisualType
 
 from bamboost_tui.command_palette import CommandPalette
@@ -16,20 +18,15 @@ class KeyHit(Hit):
         self,
         score: float,
         binding: Binding,
+        command,
         matcher: Matcher | None = None,
     ) -> None:
-        app = active_app.get()
-        super().__init__(
-            score,
-            self._render(app, binding, matcher),
-            lambda b=binding: app.simulate_key(binding.key),
-        )
+        super().__init__(score, self._render(binding, matcher), command)
 
-    def _render(
-        self, app: App, binding: Binding, matcher: Matcher | None = None
-    ) -> VisualType:
+    def _render(self, binding: Binding, matcher: Matcher | None = None) -> VisualType:
         from rich.text import Text
 
+        app = active_app.get()
         key_style = app.screen.get_component_rich_style(
             "command-palette--key", partial=True
         )
@@ -38,21 +35,16 @@ class KeyHit(Hit):
         )
 
         # Highlight description if matcher is provided
-        description = (
-            matcher.highlight(binding.description)
-            if matcher is not None
-            else Text(binding.description)
-        )
+        # I need to replace the ansi_ prefix in the markup for rich to render it (?)
+        # Fine for now
         description = Text.from_markup(
-            " ".join(
-                (
-                    description.markup,
-                    Text(f"[{binding.id}]" if binding.id else "", help_style).markup,
-                )
-            )
+            matcher.highlight(binding.description).markup.replace("ansi_", "")
+            if matcher is not None
+            else binding.description
         )
-
-        key_text = Text(binding.key, style=key_style)
+        description = description.append(
+            f" [{binding.id}]" if binding.id else "", style=help_style
+        )
 
         # Create a table with two columns: description (left), key (right)
         table = Table.grid(
@@ -62,7 +54,7 @@ class KeyHit(Hit):
             expand=True,
             pad_edge=False,
         )
-        table.add_row(description, key_text)
+        table.add_row(description, Text(binding.key, style=key_style))
         return table
 
 
@@ -81,13 +73,22 @@ class BindingsProvider(Provider):
                 binding.description + binding.key + (binding.id or "")
             )
             if score > 0:
-                yield KeyHit(score, binding, self.matcher(query))
+                yield KeyHit(
+                    score,
+                    binding,
+                    lambda b=binding: self.app.simulate_key(b.key),
+                    self.matcher(query),
+                )
 
     async def discover(self) -> Hits:
         screen = self.app.screen_stack[-2]
         for active_binding in self.get_all_bindings(screen):
             binding = active_binding.binding
-            yield KeyHit(1, binding)
+            yield KeyHit(
+                1,
+                binding,
+                lambda b=binding: self.app.simulate_key(b.key),
+            )
 
 
 class KeybindPalette(CommandPalette):
@@ -105,5 +106,7 @@ class KeybindPalette(CommandPalette):
 
     def __init__(self) -> None:
         super().__init__(
-            [BindingsProvider], placeholder="Find bindings", id="keybind-palette"
+            [BindingsProvider, SystemCommandsProvider],
+            placeholder="Find bindings",
+            id="keybind-palette",
         )

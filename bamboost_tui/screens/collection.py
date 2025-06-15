@@ -24,7 +24,7 @@ from textual.widgets.data_table import ColumnKey
 from typing_extensions import Self
 
 from bamboost_tui.commandline import CommandLine, CommandMessage
-from bamboost_tui.screens.collection_palette import CollectionHit, CollectionPicker
+from bamboost_tui.screens.collection_palette import CollectionHit, CollectionPalette
 from bamboost_tui.utils import KeySubgroupsMixin, get_index
 from bamboost_tui.widgets import ModifiedDataTable, SortOrder
 from bamboost_tui.widgets.confirmation import ModalPrompt
@@ -486,10 +486,10 @@ class ScreenCollection(Screen, inherit_bindings=False):
             self._table_container._active_widget = new_table
 
     def action_toggle_picker(self):
-        self.app.push_screen(CollectionPicker())
+        self.app.push_screen(CollectionPalette())
 
     def action_toggle_picker_remote(self):
-        self.app.push_screen(CollectionPicker())
+        self.app.push_screen(CollectionPalette())
 
     @work(exclusive=True)
     async def action_cycle_tabs(self):

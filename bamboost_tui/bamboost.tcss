@@ -469,12 +469,12 @@ CommandList {
 CommandPalette  {
 }
 
-CollectionPicker {
+CollectionPalette {
     #--input {
-        border: round $secondary;
+        border: round $boost;
     }
     CommandList {
-        border: round $secondary;
+        border: round $boost;
         border-top: none;
     }
     & > .collection-list--uid {
@@ -486,6 +486,16 @@ CollectionPicker {
     }
     & > .collection-list--count {
         color: $foreground;
+    }
+}
+KeybindPalette {
+    #--input {
+        border: round $secondary;
+        border-bottom: none;
+    }
+    CommandList {
+        border: round $secondary;
+        border-top: none;
     }
 }
 

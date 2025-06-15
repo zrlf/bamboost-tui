@@ -44,9 +44,6 @@ class CollectionHit(Hit):
 
     def _render(self, matcher: Matcher | None = None) -> VisualType:
         coll = self.collection
-        path_style = self._picker.app.screen.get_component_rich_style(
-            "collection-list--path", partial=True
-        )
 
         tab = Table.grid(
             *(Column(width=w) for w in self._picker._widths),
@@ -57,7 +54,10 @@ class CollectionHit(Hit):
         styles = self._picker.styles
         tab.add_row(
             Text(coll.uid, styles["uid"]),
-            Text.from_markup(matcher.highlight(coll.path).markup, style=path_style)
+            Text.from_markup(
+                matcher.highlight(coll.path).markup.replace("ansi_", ""),
+                style=styles["path"],
+            )
             if matcher
             else Text(coll.path, styles["path"]),
             Text(str(coll.simulations.__len__()), styles["count"]),
@@ -71,10 +71,6 @@ class CollectionProvider(Provider):
     _table: Table
 
     def __init__(self, screen: Screen, match_style: Style | None = None) -> None:
-        match_style = Style(
-            underline=True,
-            bold=True,
-        )
         super().__init__(screen, match_style)
         self.styles: dict[str, RichStyle] = {}
 
@@ -147,7 +143,7 @@ class RemoteCollectionProvider(CollectionProvider):
         self._widths = widths
 
 
-class CollectionPicker(CommandPalette):
+class CollectionPalette(CommandPalette):
     COMPONENT_CLASSES = CommandPalette.COMPONENT_CLASSES | {
         "collection-list--uid",
         "collection-list--path",
