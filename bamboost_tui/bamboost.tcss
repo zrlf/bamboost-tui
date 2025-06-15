@@ -23,15 +23,15 @@ Rule {
 }
 
 Footer {
-    background: $background;
-    grid-gutter: 0;
-
+    &:ansi {
+        background: ansi_black;
+    }
     & .footer-key--key {
         color: $accent;
+        background: transparent;
     }
     & .footer-key--description {
-        color: $foreground-muted;
-        opacity: 0.3;
+        background: transparent;
     }
 }
 
@@ -129,6 +129,9 @@ CommandLine {
         align: center middle;
         height: 1;
         background: $background;
+    &:ansi {
+        background: ansi_black;
+    }
     }
 
     & > Horizontal > Label {
@@ -359,18 +362,17 @@ HDFViewer {
 CommandPalette {
   background: transparent;
   & > .command-palette--highlight {
-    background: $accent;
+    background: $foreground;
     color: $surface;
     text-style: bold;
   }
 
   &>Vertical {
-    margin-top: 2;
+    margin-top: 0;
     height: 100%;
-    width: 70%;
+    width: 60%;
     min-width: 80;
-    visibility: hidden;
-    background: $surface;
+    background: transparent;
 
     &:dark {
       background: transparent;
@@ -378,9 +380,9 @@ CommandPalette {
   }
 
   &>.command-palette--help-text {
-    color: $text-muted;
+    color: $foreground;
     background: transparent;
-    text-style: not bold italic;
+    text-style: not bold italic dim;
   }
 
   & #--input {
@@ -405,11 +407,6 @@ CommandPalette {
       border: none;
       background: $background-cp;
     }
-
-    Label {
-      margin-top: 0;
-      margin-left: 0;
-    }
   }
 
   & #--results {
@@ -433,7 +430,7 @@ CommandList {
   height: auto;
   max-height: 70vh;
   background: $background-cp;
-  padding: 0;
+  padding: 0 1;
   border: round $border;
   border-top: none;
 
@@ -466,22 +463,12 @@ CommandList {
 # -------------------------
 # PICKER
 # -------------------------
-CommandPalette  {
-}
-
 CollectionPalette {
-    #--input {
-        border: round $boost;
-    }
-    CommandList {
-        border: round $boost;
-        border-top: none;
-    }
     & > .collection-list--uid {
-        color: $primary;
+        color: $foreground;
     }
     & > .collection-list--path {
-        color: $secondary;
+        color: $foreground;
         text-style: not bold;
     }
     & > .collection-list--count {
@@ -489,14 +476,8 @@ CollectionPalette {
     }
 }
 KeybindPalette {
-    #--input {
-        border: round $secondary;
-        border-bottom: none;
-    }
-    CommandList {
-        border: round $secondary;
-        border-top: none;
-    }
+    border-title-align: left;
+    border-title-color: $foreground;
 }
 
 # -------------------------

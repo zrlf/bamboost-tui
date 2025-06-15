@@ -23,8 +23,7 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal
 from textual.message import Message
-from textual.screen import ModalScreen, Screen
-from textual.widget import Widget
+from textual.screen import ModalScreen
 from textual.widgets import Input, Label
 from textual.widgets.data_table import ColumnKey
 from typing_extensions import Self
@@ -255,7 +254,7 @@ class CommandLine(ModalScreen[CommandMessage]):
     ]
     DEFAULT_CSS = """
     CommandLine {
-        background: $background;
+        background: transparent;
 
         & > Horizontal {
             width: 100%;
