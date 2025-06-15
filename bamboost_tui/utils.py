@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import importlib.util
+from types import ModuleType
 from typing import Generic, MutableMapping, TypeVar, cast
 
 from textual import events
@@ -13,6 +15,17 @@ def get_index():
     from bamboost.index import Index
 
     return Index.default
+
+
+def import_module_from_path(path: str, module_name: str | None = None) -> ModuleType:
+    """Import a module from a given file path."""
+    if module_name is None:
+        # Derive a module name from the path (not required, but helps in sys.modules)
+        module_name = f"plugin_{hash(path)}"
+    spec = importlib.util.spec_from_file_location(module_name, path)
+    module = importlib.util.module_from_spec(spec)  # pyright: ignore[reportArgumentType]
+    spec.loader.exec_module(module)
+    return module
 
 
 Subgroup = MutableMapping[str, "Binding  | Subgroup"]  # recursive

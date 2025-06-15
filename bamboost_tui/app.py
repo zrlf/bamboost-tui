@@ -1,7 +1,9 @@
 # pyright: reportUnusedImport=false
 from __future__ import annotations
 
-from typing import Any, Mapping
+import sys
+from types import ModuleType
+from typing import Any, Mapping, TypedDict
 
 from bamboost import config
 from textual import work
@@ -10,12 +12,19 @@ from textual.binding import Binding
 from textual.css.query import NoMatches
 from textual.widgets import HelpPanel
 
+from bamboost_tui.plugins import CustomBinding
 from bamboost_tui.screens.collection import ScreenCollection
 from bamboost_tui.screens.keybind_palette import KeybindPalette
 from bamboost_tui.theme import ANSI_THEME
-from bamboost_tui.utils import get_index
+from bamboost_tui.utils import get_index, import_module_from_path
 
-config_tui: Mapping[str, Any] = config._remainder.get("tui", {})
+
+class Config(TypedDict):
+    keys: dict[str, str]
+    plugins: list[str]
+
+
+config_tui: Config = config._remainder.get("tui", {})
 
 
 class BamboostApp(App):
@@ -50,8 +59,15 @@ class BamboostApp(App):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.plugins: list[ModuleType] = []
+
         # set the keymap from the config
         self.set_keymap(config_tui.get("keys", {}))
+
+        # load plugins from the config
+        for path in config_tui.get("plugins", []):
+            mod = import_module_from_path(path)
+            self.plugins.append(mod)
 
     def on_mount(self) -> None:
         if ansi_colors_set := self.ansi_color:
@@ -66,6 +82,25 @@ class BamboostApp(App):
 
         self._preload_modules()
         self.push_screen(ScreenCollection())
+
+        # bind keybinds from plugins here
+        for plugin in self.plugins:
+            if hasattr(plugin, "BINDINGS"):
+                for binding in plugin.BINDINGS:
+                    binding: CustomBinding
+                    # set an action method (textual requires this)
+                    action_name = binding.action_name()
+                    setattr(
+                        self,
+                        "action_" + action_name,
+                        lambda b=binding: b.action(),
+                    )
+                    # add the binding to the app
+                    all_keys = [key.strip() for key in binding.key.split(",")]
+                    for key in all_keys:
+                        self._bindings.key_to_bindings.setdefault(key, []).append(
+                            binding.to_textual_binding()
+                        )
 
     @work(thread=True)
     async def _preload_modules(self) -> None:
