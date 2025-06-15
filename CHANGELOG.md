@@ -1,3 +1,14 @@
+## 0.3.0 (2025-06-15)
+
+### Feat
+
+- **app**: add support for plugins written in python
+
+### Refactor
+
+- update dependencies (and fix styling for new textual version)
+- **palette**: improve rendering logic of command palette
+
 ## 0.2.0 (2025-06-13)
 
 ### Feat
