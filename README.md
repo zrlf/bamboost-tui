@@ -16,6 +16,11 @@ To override key bindings, specify them in the bamboost config file like this:
 
 "collection.toggle_picker" = "ctrl+m,p"
 "collection.cycle_tabs" = "t"
+"collection.reload" = "r"
+"collection.sort" = "s"
+"collection.delete" = "d"
+"collection.open_paraview" = "o>p"
+"collection.open_directory" = "o>d"
 "collection.sync" = "c>s"
 
 "index.scan" = "alt+ctrl+s"

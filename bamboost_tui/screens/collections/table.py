@@ -3,171 +3,26 @@ from __future__ import annotations
 import os
 import subprocess
 from datetime import datetime
-from itertools import chain, cycle
-from textwrap import dedent
 from typing import TYPE_CHECKING
 
 from rich.highlighter import ReprHighlighter
-from rich.table import Table
 from rich.text import Text
-from textual import on, work
+from textual import work
 from textual.binding import Binding
-from textual.color import Color
-from textual.containers import Center, Container, Horizontal, Right
 from textual.coordinate import Coordinate
 from textual.geometry import Offset, Region
-from textual.reactive import reactive, var
-from textual.screen import Screen
-from textual.widget import Widget
-from textual.widgets import DataTable, Footer, Static, Tab
+from textual.reactive import var
+from textual.widgets import DataTable
 from textual.widgets.data_table import ColumnKey
 from typing_extensions import Self
 
 from bamboost_tui.commandline import CommandLine, CommandMessage
-from bamboost_tui.screens.collection_palette import CollectionHit, CollectionPalette
 from bamboost_tui.utils import KeySubgroupsMixin, get_index
 from bamboost_tui.widgets import ModifiedDataTable, SortOrder
 from bamboost_tui.widgets.confirmation import ModalPrompt
 
 if TYPE_CHECKING:
     import pandas as pd
-    from textual.app import ComposeResult, RenderResult
-
-
-class CollectionHeader(Widget, can_focus=False):
-    DEFAULT_CSS = """
-    CollectionHeader {
-        height: auto;
-        width: auto;
-    }
-    """
-    COMPONENT_CLASSES = Static.COMPONENT_CLASSES | {
-        "--uid",
-        "--path",
-    }
-
-    def __init__(self, uid: str | None = None, path: str | None = None) -> None:
-        uid = uid or ""
-        self.uid = uid
-        self.path = self._get_path(uid)
-        super().__init__(id="collection-header")
-
-    def render(self) -> RenderResult:
-        tab = Table.grid("key", "value", padding=(0, 3))
-        if self.uid:
-            tab.add_row(
-                "UID:",
-                self.uid,
-                style=self.get_component_rich_style("--uid", partial=True),
-            )
-            tab.add_row(
-                "Path:",
-                self.path or "[collection not found]",
-                style=self.get_component_rich_style("--path", partial=True),
-            )
-        return tab
-
-    def _get_path(self, uid: str | None) -> str:
-        found_path = get_index()._get_collection_path(uid) if uid else None
-        return found_path.as_posix() if found_path else "[Collection location found]"
-
-    def on_mount(self):
-        self.watch(self.screen, "current_uid", self._watch_current_uid, init=False)
-
-    def _watch_current_uid(self, _old, _new: str | None) -> None:
-        self.uid = _new
-        self.path = self._get_path(_new)
-        self.refresh(layout=True)
-
-
-class OpenCollectionsTabs(Widget):
-    DEFAULT_CSS = """
-    OpenCollectionsTabs {
-        height: 1;
-        layout: horizontal;
-
-        Tab {
-            padding: 0 1;
-            height: 1;
-            width: auto;
-            color: $panel;
-        }
-        Tab.-active {
-            background: $surface;
-            text-style: bold;
-        }
-    }
-    """
-    tabs: set[str]
-    screen: ScreenCollection
-
-    def __init__(self):
-        super().__init__(id="collections-tabs")
-        self.tabs = set()
-
-    def on_mount(self):
-        self.watch(self.screen, "current_uid", self._watch_current_uid, init=False)
-
-    def _watch_current_uid(self, _old, _new: str | None) -> None:
-        self.tabs = set(self.screen._open_collections.keys())
-        self.refresh(recompose=True)
-        self.call_after_refresh(self.set_active, _new)
-
-    def set_active(self, new: str | None) -> None:
-        if new is None:
-            return
-        self.query("Tab.-active").remove_class("-active")
-        self.query(f"Tab#tab-{new}").add_class("-active")
-
-    def compose(self) -> ComposeResult:
-        yield from (Tab(key, id=f"tab-{key}") for key in self.tabs)
-
-
-class Placeholder(Static):
-    def compose(self) -> ComposeResult:
-        with Center():
-            yield Static(
-                dedent("""
-                            dP                           dP                                    dP
-                            88                           88                                    88
-                            88d888b. .d8888b. 88d8b.d8b. 88d888b. .d8888b. .d8888b. .d8888b. d8888P
-                            88'  `88 88'  `88 88'`88'`88 88'  `88 88'  `88 88'  `88 Y8ooooo.   88
-                            88.  .88 88.  .88 88  88  88 88.  .88 88.  .88 88.  .88       88   88
-                            88Y8888' `88888P8 dP  dP  dP 88Y8888' `88888P' `88888P' `88888P'   dP
-                        """),
-                classes="logo",
-            )
-        with Center():
-            val = self.app.theme_variables.get("secondary")
-            c = Color.parse(val).rich_color.name
-            yield Static(
-                Text.from_markup(
-                    f"No collection selected. Press [bold {c}]Ctrl+M[/bold {c}] to open the collection picker."
-                )
-            )
-        with Center():
-            val = self.app.theme_variables.get("panel")
-            c = Color.parse(val).rich_color.name
-            yield Static(Text("A creation of florez/zrlf ♥", style=f"italic {c}"))
-
-
-class TableContainer(Container):
-    _active_widget: reactive[CollectionTable | Placeholder] = reactive(
-        Placeholder, recompose=True
-    )
-    DEFAULT_CLASSES = "placeholder"
-
-    def watch__active_widget(self, old: Widget, new: Widget) -> None:
-        if isinstance(new, Placeholder):
-            self.add_class("placeholder")
-        else:
-            self.remove_class("placeholder")
-
-    def compose(self) -> ComposeResult:
-        yield self._active_widget
-
-    def focus(self, scroll_visible: bool = True) -> CollectionTable | Placeholder:
-        return self._active_widget.focus(scroll_visible)
 
 
 REPR_HIGHLIGHTER = ReprHighlighter()
@@ -203,11 +58,23 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
         # Commands
         Binding(":", "command_line", "enter command mode", show=True),
         Binding("/", 'command_line("goto", "")', "jump to column", show=False),
-        Binding("r", "reload", "reload data", show=False),
-        Binding("s", "sort_column", "sort column", show=False),
-        Binding("d", "delete", "delete simulation", show=False),
-        Binding("o>p", "open_paraview", "open paraview", show=False),
-        Binding("o>d", "open_directory", "open directory in editor", show=False),
+        Binding("r", "reload", "reload data", show=False, id="collection.reload"),
+        Binding("s", "sort_column", "sort column", show=False, id="collection.sort"),
+        Binding("d", "delete", "delete simulation", show=False, id="collection.delete"),
+        Binding(
+            "o>p",
+            "open_paraview",
+            "open paraview",
+            show=False,
+            id="collection.open_paraview",
+        ),
+        Binding(
+            "o>d",
+            "open_directory",
+            "open directory in editor",
+            show=False,
+            id="collection.open_directory",
+        ),
         Binding(
             "c>s", "sync", "sync collection with fs", show=False, id="collection.sync"
         ),
@@ -432,100 +299,3 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
         self.notify("✔️ Synced collection", timeout=1.0)
         # reload the collection
         await self.action_reload()
-
-
-class ScreenCollection(Screen, inherit_bindings=False):
-    BINDINGS = [
-        Binding(
-            "ctrl+m",
-            "toggle_picker",
-            "toggle the collection picker",
-            id="collection.toggle_picker",
-        ),
-        Binding(
-            "ctrl+t",
-            "cycle_tabs",
-            "cycle through collection tabs",
-            show=False,
-            id="collection.cycle_tabs",
-        ),
-        Binding("q", "close", "close collection", show=False),
-    ]
-    BINDING_GROUP_TITLE = "Screen commands"
-
-    _open_collections: dict[str, CollectionTable]
-    current_uid: var[str | None] = var(None)
-    current_widget: CollectionTable | Placeholder
-
-    def __init__(self, uid: str | None = None) -> None:
-        super().__init__(uid)
-        self.set_reactive(ScreenCollection.current_uid, uid)
-        self._table_container = TableContainer(id="table-container")
-        """The container holding the table widget."""
-        self._tabs = OpenCollectionsTabs()
-        """The container holding the tabs in the header."""
-        self._open_collections = {}
-
-    def compose(self) -> ComposeResult:
-        with Horizontal(id="header"):
-            yield CollectionHeader()
-            with Right():
-                yield self._tabs
-        yield self._table_container
-        yield Footer(disabled=True)
-
-    def watch_current_uid(self, _old, new: str | None) -> None:
-        if new is None:
-            self._table_container._active_widget = Placeholder()
-            return
-        try:
-            self._table_container._active_widget = self._open_collections[new]
-        except KeyError:
-            new_table = CollectionTable(new)
-            self._open_collections[new] = new_table
-            self._table_container._active_widget = new_table
-
-    def action_toggle_picker(self):
-        self.app.push_screen(CollectionPalette())
-
-    def action_toggle_picker_remote(self):
-        self.app.push_screen(CollectionPalette())
-
-    @work(exclusive=True)
-    async def action_cycle_tabs(self):
-        if self.current_uid is None:
-            return
-        uid_list = list(self._open_collections.keys())
-        start = uid_list.index(str(self.current_uid))
-        uid_cycler_start_from_current = cycle(
-            (i for i in chain(uid_list[start + 1 :], uid_list[: start + 1]))
-        )
-        # from the location of the current_uid, get the next tab, if at end, cycle to
-        # start
-        if next_tab := next(uid_cycler_start_from_current, None):
-            self.current_uid = next_tab
-
-    def action_close(self):
-        uid = self.current_uid
-        if uid is None:
-            self.app.exit()
-            return
-        _open_collections = self._open_collections
-        if _open_collections:
-            collection = _open_collections.pop(uid)
-            self.remove_children(f"#{collection.id}")
-            if not _open_collections:
-                self.current_uid = None
-                self._table_container._active_widget = Placeholder()
-            else:
-                self.current_uid = next(iter(self._open_collections.keys()))
-        else:
-            self.app.exit()
-
-    @on(CollectionHit.CollectionSelected)
-    def _open_collection(self, message: CollectionHit.CollectionSelected) -> None:
-        self.current_uid = message.uid
-
-    @on(Tab.Clicked)
-    def _on_tab_clicked(self, message: Tab.Clicked) -> None:
-        self.current_uid = message.tab.label_text

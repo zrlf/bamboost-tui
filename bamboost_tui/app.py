@@ -13,7 +13,7 @@ from textual.css.query import NoMatches
 from textual.widgets import HelpPanel
 
 from bamboost_tui.plugins import CustomBinding
-from bamboost_tui.screens.collection import ScreenCollection
+from bamboost_tui.screens.collections import ScreenCollection
 from bamboost_tui.screens.keybind_palette import KeybindPalette
 from bamboost_tui.theme import ANSI_THEME
 from bamboost_tui.utils import get_index, import_module_from_path
