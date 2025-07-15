@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from itertools import chain, cycle
 
+from bamboost.exceptions import InvalidCollectionError
 from textual import on, work
 from textual.app import ComposeResult
 from textual.binding import Binding
@@ -9,7 +10,7 @@ from textual.containers import Container, Horizontal, Right
 from textual.reactive import reactive, var
 from textual.screen import Screen
 from textual.widget import Widget
-from textual.widgets import Footer, Tab
+from textual.widgets import Footer, Label, Tab
 
 from bamboost_tui.commandline import CommandLine as CommandLine
 from bamboost_tui.commandline import CommandMessage as CommandMessage
@@ -69,14 +70,29 @@ class ScreenCollection(Screen, inherit_bindings=False):
     current_uid: var[str | None] = var(None)
     current_widget: CollectionTable | Placeholder
 
-    def __init__(self, uid: str | None = None) -> None:
-        super().__init__(uid)
+    def __init__(self, uid: str | None = None, path: str | None = None) -> None:
+        super().__init__()
+        self.uid, self.path = uid, path
         self.set_reactive(ScreenCollection.current_uid, uid)
         self._table_container = TableContainer(id="table-container")
         """The container holding the table widget."""
         self._tabs = OpenCollectionsTabs()
         """The container holding the tabs in the header."""
         self._open_collections = {}
+
+    def on_mount(self) -> None:
+        if not self.uid and self.path:
+            self.loading = True
+            self._startup_with_path(self.path)
+
+    @work(thread=True)
+    async def _startup_with_path(self, path: str) -> None:
+        try:
+            uid = get_index().resolve_uid(path)
+            self.current_uid = uid
+        except InvalidCollectionError:
+            self.notify("[$error][/$error] Invalid collection path")
+        self.loading = False
 
     def compose(self) -> ComposeResult:
         with Horizontal(id="header"):
@@ -87,15 +103,24 @@ class ScreenCollection(Screen, inherit_bindings=False):
         yield Footer(disabled=True)
 
     def watch_current_uid(self, _old, new: str | None) -> None:
-        if new is None:
+        self.show_collection(uid=new)
+
+    @work(exclusive=True)
+    async def show_collection(self, uid: str | None = None) -> None:
+        # if no uid, show placeholder
+        if uid is None:
             self._table_container._active_widget = Placeholder()
-            return
-        try:
-            self._table_container._active_widget = self._open_collections[new]
-        except KeyError:
-            new_table = CollectionTable(new)
-            self._open_collections[new] = new_table
-            self._table_container._active_widget = new_table
+        else:
+            try:
+                self._table_container._active_widget = self._open_collections[uid]
+            except KeyError:
+                new_table = CollectionTable(uid)
+                self._open_collections[uid] = new_table
+                self._table_container._active_widget = new_table
+
+        # update header and tabs
+        self.query_one(CollectionHeader).update_uid(uid)
+        self._tabs.update_uid(uid)
 
     def action_toggle_picker(self):
         self.app.push_screen(CollectionPalette())

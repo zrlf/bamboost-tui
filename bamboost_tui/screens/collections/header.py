@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from bamboost_tui.screens.collections import ScreenCollection
 
 
-class CollectionHeader(Widget, can_focus=False):
+class CollectionHeader(Static, can_focus=False):
     DEFAULT_CSS = """
     CollectionHeader {
         height: auto;
@@ -28,21 +28,18 @@ class CollectionHeader(Widget, can_focus=False):
 
     def __init__(self, uid: str | None = None, path: str | None = None) -> None:
         uid = uid or ""
-        self.uid = uid
-        self.path = self._get_path(uid)
-        super().__init__(id="collection-header")
+        path = self._get_path(uid)
+        super().__init__(content=self._get_rich_table(uid, path), id="collection-header")
 
-    def render(self) -> RenderResult:
+    def _get_rich_table(self, uid: str, path: str) -> RenderResult:
         tab = Table.grid("key", "value", padding=(0, 3))
-        if self.uid:
+        if uid:
             tab.add_row(
-                "UID:",
-                self.uid,
-                style=self.get_component_rich_style("--uid", partial=True),
+                "UID:", uid, style=self.get_component_rich_style("--uid", partial=True)
             )
             tab.add_row(
                 "Path:",
-                self.path or "[collection not found]",
+                path or "[collection not found]",
                 style=self.get_component_rich_style("--path", partial=True),
             )
         return tab
@@ -51,13 +48,9 @@ class CollectionHeader(Widget, can_focus=False):
         found_path = get_index()._get_collection_path(uid) if uid else None
         return found_path.as_posix() if found_path else "[Collection location found]"
 
-    def on_mount(self):
-        self.watch(self.screen, "current_uid", self._watch_current_uid, init=False)
-
-    def _watch_current_uid(self, _old, _new: str | None) -> None:
-        self.uid = _new
-        self.path = self._get_path(_new)
-        self.refresh(layout=True)
+    def update_uid(self, uid: str | None) -> None:
+        """Update the UID and path in the header."""
+        self.update(content=self._get_rich_table(uid or "", self._get_path(uid)))
 
 
 class OpenCollectionsTabs(Widget):
@@ -85,13 +78,10 @@ class OpenCollectionsTabs(Widget):
         super().__init__(id="collections-tabs")
         self.tabs = set()
 
-    def on_mount(self):
-        self.watch(self.screen, "current_uid", self._watch_current_uid, init=False)
-
-    def _watch_current_uid(self, _old, _new: str | None) -> None:
+    def update_uid(self, uid: str | None) -> None:
         self.tabs = set(self.screen._open_collections.keys())
         self.refresh(recompose=True)
-        self.call_after_refresh(self.set_active, _new)
+        self.call_after_refresh(self.set_active, uid)
 
     def set_active(self, new: str | None) -> None:
         if new is None:

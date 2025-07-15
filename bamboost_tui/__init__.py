@@ -1,3 +1,6 @@
+from bamboost_tui.utils import get_index
+
+
 def main():
     import argparse
 
@@ -9,8 +12,16 @@ def main():
         default=True,
         help="Use full colors instead of terminal colors.",
     )
+    parser.add_argument(
+        "path",
+        default=None,
+        nargs="?",
+    )
     from .app import BamboostApp
 
     args = parser.parse_args()
 
-    BamboostApp(watch_css=True, ansi_color=args.color).run()
+    app = BamboostApp(
+        watch_css=True, ansi_color=args.color, initial_collection_path=args.path
+    )
+    app.run()

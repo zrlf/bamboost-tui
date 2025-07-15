@@ -7,10 +7,10 @@ from typing import Any, Mapping, TypedDict
 
 from bamboost import config
 from textual import work
-from textual.app import App
+from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.css.query import NoMatches
-from textual.widgets import HelpPanel
+from textual.widgets import HelpPanel, LoadingIndicator
 
 from bamboost_tui.plugins import CustomBinding
 from bamboost_tui.screens.collections import ScreenCollection
@@ -57,8 +57,9 @@ class BamboostApp(App):
     ]
     ENABLE_COMMAND_PALETTE = False
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, initial_collection_path: str | None = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.initial_collection_path = initial_collection_path
         self.plugins: list[ModuleType] = []
 
         # set the keymap from the config
@@ -79,9 +80,10 @@ class BamboostApp(App):
 
         # This fixes the bug that the screen is empty after resuming the app
         self.app_resume_signal.subscribe(self, lambda *_args, **_kwargs: self.refresh())
-
         self._preload_modules()
-        self.push_screen(ScreenCollection())
+
+        screen = ScreenCollection(path=self.initial_collection_path)
+        self.push_screen(screen)
 
         # bind keybinds from plugins here
         for plugin in self.plugins:
