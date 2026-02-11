@@ -10,7 +10,7 @@ from textual.containers import Container, Horizontal, Right
 from textual.reactive import reactive, var
 from textual.screen import Screen
 from textual.widget import Widget
-from textual.widgets import Footer, Label, Tab
+from textual.widgets import Footer, Tab
 
 from bamboost_tui.commandline import CommandLine as CommandLine
 from bamboost_tui.commandline import CommandMessage as CommandMessage
@@ -30,7 +30,7 @@ from bamboost_tui.widgets.confirmation import ModalPrompt as ModalPrompt
 
 class TableContainer(Container):
     _active_widget: reactive[CollectionTable | Placeholder] = reactive(
-        Placeholder, recompose=True
+        Placeholder(), recompose=True
     )
     DEFAULT_CLASSES = "placeholder"
 

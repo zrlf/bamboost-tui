@@ -23,7 +23,7 @@ from bamboost_tui.widgets.confirmation import ModalPrompt
 
 if TYPE_CHECKING:
     import pandas as pd
-
+    from pandas import DataFrame
 
 REPR_HIGHLIGHTER = ReprHighlighter()
 
@@ -113,7 +113,15 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
 
     @work(exclusive=True)
     async def _load_data(self):
-        self.df = get_index().collection(self.uid).to_pandas()
+        from bamboost import config
+
+        self.df: DataFrame = get_index().collection(self.uid).to_pandas()
+        self.df.sort_values(
+            config.options.sortTableKey,
+            inplace=True,
+            ascending=config.options.sortTableOrder == "asc",
+            ignore_index=True,
+        )
         self.loading = False
         self.focus()
 
