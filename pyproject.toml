@@ -1,6 +1,6 @@
 [project]
 name = "bamboost-tui"
-version = "0.3.0"
+version = "0.3.1"
 description = "A terminal user interface for bamboost. A tool to view and manage simulation data."
 readme = "README.md"
 authors = [

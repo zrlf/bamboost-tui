@@ -1,3 +1,18 @@
+## 0.3.1 (2026-02-11)
+
+### Feat
+
+- **collections**: open collection directly when providing optional path as argument
+
+### Fix
+
+- respect config sort order for collections
+- change surface color to ansi_bright_black
+
+### Refactor
+
+- **collections**: refactor collection table screen into multiple files
+
 ## 0.3.0 (2025-06-15)
 
 ### Feat
