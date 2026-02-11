@@ -3,3 +3,4 @@ __pycache__/
 **/.bamboost*/
 **/out*/
 bamboost.toml
+.python-version
