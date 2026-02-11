@@ -29,8 +29,7 @@ reportOptionalSubscript = false
 useLibraryCodeForTypes = true
 
 [tool.uv.sources]
-bamboost = { path = "../bamboost@next", editable = true }
-textual-autocomplete = { path = "../../../dev/textual-autocomplete", editable = true }
+bamboost = { path = "../bamboost", editable = true }
 
 [tool.commitizen]
 name = "cz_conventional_commits"
