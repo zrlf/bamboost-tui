@@ -29,7 +29,9 @@ class CollectionHeader(Static, can_focus=False):
     def __init__(self, uid: str | None = None, path: str | None = None) -> None:
         uid = uid or ""
         path = self._get_path(uid)
-        super().__init__(content=self._get_rich_table(uid, path), id="collection-header")
+        super().__init__(
+            content=self._get_rich_table(uid, path), id="collection-header"
+        )
 
     def _get_rich_table(self, uid: str, path: str) -> RenderResult:
         tab = Table.grid("key", "value", padding=(0, 3))

@@ -2,16 +2,20 @@ from __future__ import annotations
 
 import importlib.util
 from types import ModuleType
-from typing import Generic, MutableMapping, TypeVar, cast
+from typing import MutableMapping, TypeVar, cast
 
+from termcolor.termcolor import TYPE_CHECKING
 from textual import events
 from textual.app import App
 from textual.binding import Binding, BindingType
 from textual.color import Color
 from textual.widget import Widget
 
+if TYPE_CHECKING:
+    from bamboost.index import Index
 
-def get_index():
+
+def get_index() -> Index:
     from bamboost.index import Index
 
     return Index.default

@@ -1,16 +1,15 @@
 # pyright: reportUnusedImport=false
 from __future__ import annotations
 
-import sys
 from types import ModuleType
-from typing import Any, Mapping, TypedDict
+from typing import TypedDict
 
 from bamboost import config
 from textual import work
-from textual.app import App, ComposeResult
+from textual.app import App
 from textual.binding import Binding
 from textual.css.query import NoMatches
-from textual.widgets import HelpPanel, LoadingIndicator
+from textual.widgets import HelpPanel
 
 from bamboost_tui.plugins import CustomBinding
 from bamboost_tui.screens.collections import ScreenCollection

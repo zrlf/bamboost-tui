@@ -31,7 +31,7 @@ from typing_extensions import Self
 from bamboost_tui.widgets import AutoComplete, DropdownItem, TargetState
 
 if TYPE_CHECKING:
-    from bamboost_tui.screens.collection import CollectionTable
+    from bamboost_tui.screens.collections import CollectionTable
 
     ChoicesType = Union[Iterable[str], Callable[["CommandLine"], Iterable[str]], None]
     ChoicesResolvedType = Iterable[str]
@@ -119,7 +119,7 @@ class CommandMessage(Message):
                 resolved_attr = attr._resolve(target)
                 setattr(self, name, resolved_attr)
                 if isinstance(attr, Option):
-                    self._options[attr.name] = resolved_attr  # type: ignore
+                    self._options[attr.name] = resolved_attr
                 else:
                     self._arguments.append(resolved_attr)
 

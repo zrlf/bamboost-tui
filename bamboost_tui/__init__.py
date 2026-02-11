@@ -1,4 +1,4 @@
-from bamboost_tui.utils import get_index
+from bamboost_tui.utils import get_index as get_index
 
 
 def main():
