@@ -19,6 +19,7 @@ from bamboost_tui.screens.collection_palette import (
     CollectionHit,
     CollectionPalette,
     RemoteCollectionPalette,
+    UpdateDatabaseHit,
 )
 from bamboost_tui.screens.collections.header import (
     CollectionHeader,
@@ -189,30 +190,23 @@ class ScreenCollection(Screen, inherit_bindings=False):
     @on(RemoteHit.RemoteSelected)
     def _on_remote_selected(self, message: RemoteHit.RemoteSelected) -> None:
         self._active_remote = message.remote
-        self._fetch_and_browse_remote(message.remote)
+        self.app.push_screen(RemoteCollectionPalette(message.remote))
 
-    @work(thread=True)
-    async def _fetch_and_browse_remote(self, remote: "Remote") -> None:
-        self.notify(
+    @on(UpdateDatabaseHit.Fetch)
+    def _fetch_remote_collections(self, message: UpdateDatabaseHit.Fetch) -> None:
+        remote = message.remote
+        self.app.notify(
             f"⏳ Fetching remote database from [bold]{remote._remote_url}[/bold]…",
             timeout=3.0,
         )
-        try:
-            remote.fetch_remote_database()
-        except Exception as e:
-            self.notify(
-                f"Failed to fetch remote database: {e}",
-                severity="error",
-                timeout=5.0,
-            )
-            return
-        self.notify(
-            f"✔️ Fetched database from [bold]{remote._remote_url}[/bold]",
-            timeout=2.0,
+        remote.fetch_remote_database()
+        self.app.notify(
+            f"✅ Successfully fetched remote database from [bold]{remote._remote_url}[/bold].",
+            timeout=3.0,
         )
-        self.app.call_from_thread(
-            self.app.push_screen, RemoteCollectionPalette(remote)
-        )
+        # stop propagation of message
+        message.stop()
+        self.app.push_screen(RemoteCollectionPalette(message.remote))
 
     @on(Tab.Clicked)
     def _on_tab_clicked(self, message: Tab.Clicked) -> None:

@@ -432,13 +432,12 @@ class NavigationPreview(VerticalScroll, can_focus=False):
 class HDFViewer(Screen):
     path: var[HDF5Path | None] = var(None)
 
-    def __init__(self, collection_uid: str, simulation_name: str) -> None:
+    def __init__(self, simulation: Simulation) -> None:
         super().__init__("hdfviewer")
-        self.collection_uid = collection_uid
-        self.simulation_name = simulation_name
-        self.simulation = Simulation.from_uid(
-            f"{collection_uid}{constants.UID_SEPARATOR}{simulation_name}"
-        )
+        self.simulation = simulation
+        self.collection_uid = simulation.collection_uid
+        self.simulation_name = simulation.name
+
         with self.simulation._file.open() as f:
             f.file_map.populate(exclude_numeric=False)
         self._stack: list[NavigationState] = []
