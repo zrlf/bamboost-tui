@@ -251,6 +251,10 @@ CollectionTable {
         color: $secondary;
         text-style: bold;
     }
+    .--remote {
+        color: $accent;
+        text-style: italic;
+    }
 }
 
 # ---------------------------------------------
@@ -463,7 +467,7 @@ CommandList {
 # -------------------------
 # PICKER
 # -------------------------
-CollectionPalette {
+CollectionPalette, RemoteCollectionPalette {
     & > .collection-list--uid {
         color: $foreground;
     }
@@ -473,6 +477,15 @@ CollectionPalette {
     }
     & > .collection-list--count {
         color: $foreground;
+    }
+}
+RemotePalette {
+    & > .remote-list--url {
+        color: $foreground;
+    }
+    & > .remote-list--workspace {
+        color: $foreground;
+        text-style: not bold;
     }
 }
 KeybindPalette {

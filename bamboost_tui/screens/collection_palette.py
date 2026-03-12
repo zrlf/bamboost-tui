@@ -16,6 +16,7 @@ from textual.visual import VisualType
 from bamboost_tui.command_palette import CommandPalette
 
 if TYPE_CHECKING:
+    from bamboost.core.remote import Remote
     from bamboost.index.sqlmodel import CollectionORM
 
 
@@ -115,6 +116,8 @@ class CollectionProvider(Provider):
 
 
 class RemoteCollectionProvider(CollectionProvider):
+    """A command provider to select collections from a remote index."""
+
     async def startup(self) -> None:
         app = active_app.get()
         self.styles["uid"] = app.screen.get_component_rich_style(
@@ -129,9 +132,14 @@ class RemoteCollectionProvider(CollectionProvider):
         self.styles["help"] = app.screen.get_component_rich_style(
             "command-palette--help-text", partial=True
         )
-        from bamboost.core.remote import Remote
 
-        self.collections = Remote()
+        remote = getattr(self.screen, "_remote", None)
+        if remote is None:
+            self.collections = []
+            self._widths = (0, 0, 0)
+            return
+
+        self.collections = remote.all_collections
         widths = (0, 0, 0)
         for coll in self.collections:
             widths = tuple(
@@ -155,4 +163,20 @@ class CollectionPalette(CommandPalette):
             providers=[CollectionProvider],
             placeholder="Search collections",
             id="collection-picker",
+        )
+
+
+class RemoteCollectionPalette(CommandPalette):
+    COMPONENT_CLASSES = CommandPalette.COMPONENT_CLASSES | {
+        "collection-list--uid",
+        "collection-list--path",
+        "collection-list--count",
+    }
+
+    def __init__(self, remote: "Remote"):
+        self._remote = remote
+        super().__init__(
+            providers=[RemoteCollectionProvider],
+            placeholder=f"Search remote collections ({remote._remote_url})",
+            id="remote-collection-picker",
         )
