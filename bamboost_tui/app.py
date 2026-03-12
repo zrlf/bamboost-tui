@@ -138,6 +138,24 @@ class BamboostApp(App):
         get_index().check_integrity()
         self.notify("⚪ Cleaned index")
 
+    def get_uid(self) -> str | None:
+        """This is a helper function for custom functions (plugins). You can use it to get
+        the uid of the selected collection of the currently active table."""
+        from bamboost_tui.screens.collections.placeholder import Placeholder
+
+        if not isinstance(self.screen, ScreenCollection):
+            raise RuntimeError("Not on a collection screen")
+
+        table = self.screen._table_container._active_widget
+        if isinstance(table, Placeholder):
+            self.notify(
+                "No collection table available. Doing nothing.", severity="information"
+            )
+            return
+
+        name = table._row_locations.get_key(table.cursor_row).value
+        return f"{table.uid}:{name}"
+
 
 if __name__ == "__main__":
     result = BamboostApp(watch_css=False, ansi_color=True).run()
