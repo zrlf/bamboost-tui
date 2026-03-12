@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from itertools import chain, cycle
+from typing import TYPE_CHECKING
 
 from bamboost.exceptions import InvalidCollectionError
 from textual import on, work
@@ -14,18 +15,26 @@ from textual.widgets import Footer, Tab
 
 from bamboost_tui.commandline import CommandLine as CommandLine
 from bamboost_tui.commandline import CommandMessage as CommandMessage
-from bamboost_tui.screens.collection_palette import CollectionHit, CollectionPalette
+from bamboost_tui.screens.collection_palette import (
+    CollectionHit,
+    CollectionPalette,
+    RemoteCollectionPalette,
+)
 from bamboost_tui.screens.collections.header import (
     CollectionHeader,
     OpenCollectionsTabs,
 )
 from bamboost_tui.screens.collections.placeholder import Placeholder
 from bamboost_tui.screens.collections.table import CollectionTable
+from bamboost_tui.screens.remote_palette import RemoteHit, RemotePalette
 from bamboost_tui.utils import KeySubgroupsMixin as KeySubgroupsMixin
 from bamboost_tui.utils import get_index as get_index
 from bamboost_tui.widgets import ModifiedDataTable as ModifiedDataTable
 from bamboost_tui.widgets import SortOrder as SortOrder
 from bamboost_tui.widgets.confirmation import ModalPrompt as ModalPrompt
+
+if TYPE_CHECKING:
+    from bamboost.core.remote import Remote
 
 
 class TableContainer(Container):
@@ -56,6 +65,12 @@ class ScreenCollection(Screen, inherit_bindings=False):
             id="collection.toggle_picker",
         ),
         Binding(
+            "ctrl+r",
+            "toggle_remote_picker",
+            "select a remote",
+            id="collection.toggle_remote_picker",
+        ),
+        Binding(
             "ctrl+t",
             "cycle_tabs",
             "cycle through collection tabs",
@@ -69,6 +84,8 @@ class ScreenCollection(Screen, inherit_bindings=False):
     _open_collections: dict[str, CollectionTable]
     current_uid: var[str | None] = var(None)
     current_widget: CollectionTable | Placeholder
+    _active_remote: Remote | None = None
+    """The currently selected remote, or None for local collections."""
 
     def __init__(self, uid: str | None = None, path: str | None = None) -> None:
         super().__init__()
@@ -106,7 +123,9 @@ class ScreenCollection(Screen, inherit_bindings=False):
         self.show_collection(uid=new)
 
     @work(exclusive=True)
-    async def show_collection(self, uid: str | None = None) -> None:
+    async def show_collection(
+        self, uid: str | None = None, remote: Remote | None = None
+    ) -> None:
         # if no uid, show placeholder
         if uid is None:
             self._table_container._active_widget = Placeholder()
@@ -114,19 +133,19 @@ class ScreenCollection(Screen, inherit_bindings=False):
             try:
                 self._table_container._active_widget = self._open_collections[uid]
             except KeyError:
-                new_table = CollectionTable(uid)
+                new_table = CollectionTable(uid, remote=remote)
                 self._open_collections[uid] = new_table
                 self._table_container._active_widget = new_table
 
         # update header and tabs
-        self.query_one(CollectionHeader).update_uid(uid)
+        self.query_one(CollectionHeader).update_uid(uid, remote=remote)
         self._tabs.update_uid(uid)
 
     def action_toggle_picker(self):
         self.app.push_screen(CollectionPalette())
 
-    def action_toggle_picker_remote(self):
-        self.app.push_screen(CollectionPalette())
+    def action_toggle_remote_picker(self):
+        self.app.push_screen(RemotePalette())
 
     @work(exclusive=True)
     async def action_cycle_tabs(self):
@@ -161,7 +180,39 @@ class ScreenCollection(Screen, inherit_bindings=False):
 
     @on(CollectionHit.CollectionSelected)
     def _open_collection(self, message: CollectionHit.CollectionSelected) -> None:
-        self.current_uid = message.uid
+        if self._active_remote is not None:
+            self.show_collection(uid=message.uid, remote=self._active_remote)
+            self._active_remote = None
+        else:
+            self.current_uid = message.uid
+
+    @on(RemoteHit.RemoteSelected)
+    def _on_remote_selected(self, message: RemoteHit.RemoteSelected) -> None:
+        self._active_remote = message.remote
+        self._fetch_and_browse_remote(message.remote)
+
+    @work(thread=True)
+    async def _fetch_and_browse_remote(self, remote: "Remote") -> None:
+        self.notify(
+            f"⏳ Fetching remote database from [bold]{remote._remote_url}[/bold]…",
+            timeout=3.0,
+        )
+        try:
+            remote.fetch_remote_database()
+        except Exception as e:
+            self.notify(
+                f"Failed to fetch remote database: {e}",
+                severity="error",
+                timeout=5.0,
+            )
+            return
+        self.notify(
+            f"✔️ Fetched database from [bold]{remote._remote_url}[/bold]",
+            timeout=2.0,
+        )
+        self.app.call_from_thread(
+            self.app.push_screen, RemoteCollectionPalette(remote)
+        )
 
     @on(Tab.Clicked)
     def _on_tab_clicked(self, message: Tab.Clicked) -> None:

@@ -25,6 +25,8 @@ if TYPE_CHECKING:
     import pandas as pd
     from pandas import DataFrame
 
+    from bamboost.core.remote import Remote
+
 REPR_HIGHLIGHTER = ReprHighlighter()
 
 
@@ -78,6 +80,13 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
         Binding(
             "c>s", "sync", "sync collection with fs", show=False, id="collection.sync"
         ),
+        Binding(
+            "c>r",
+            "rsync",
+            "rsync simulation from remote",
+            show=False,
+            id="collection.rsync",
+        ),
     ]
     BINDING_GROUP_TITLE = "Collection commands"
     COMPONENT_CLASSES = DataTable.COMPONENT_CLASSES | {
@@ -92,7 +101,7 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
     df: var[pd.DataFrame | None] = var(None, init=False, always_update=True)
     """The pandas DataFrame from which the table is built."""
 
-    def __init__(self, uid: str):
+    def __init__(self, uid: str, remote: Remote | None = None):
         super().__init__(
             header_height=2,
             cursor_type="cell",
@@ -105,6 +114,9 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
         self.uid: str = uid
         """The collection uid to display."""
 
+        self.remote: Remote | None = remote
+        """Optional remote index for remote collections."""
+
     def on_mount(self):
         if self.df is None:
             self.loading = True
@@ -115,7 +127,10 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
     async def _load_data(self):
         from bamboost import config
 
-        self.df: DataFrame = get_index().collection(self.uid).to_pandas()
+        if self.remote is not None:
+            self.df: DataFrame = self.remote[self.uid].df
+        else:
+            self.df: DataFrame = get_index().collection(self.uid).to_pandas()
         self.df.sort_values(
             config.options.sortTableKey,
             inplace=True,
@@ -284,9 +299,12 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
         previous_coordinate = self.cursor_coordinate
 
         # update df without triggering a watch
-        self.set_reactive(
-            CollectionTable.df, get_index().collection(self.uid).to_pandas()
-        )
+        if self.remote is not None:
+            self.set_reactive(CollectionTable.df, self.remote[self.uid].df)
+        else:
+            self.set_reactive(
+                CollectionTable.df, get_index().collection(self.uid).to_pandas()
+            )
         await self._create_table()
 
         # sort the table as before
@@ -307,3 +325,18 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
         self.notify("✔️ Synced collection", timeout=1.0)
         # reload the collection
         await self.action_reload()
+
+    @work(thread=True)
+    async def action_rsync(self):
+        if self.remote is None:
+            self.notify("Not a remote collection", severity="warning", timeout=2.0)
+            return
+        row_key = self._row_locations.get_key(self.cursor_row)
+        assert row_key is not None, "No simulation selected."
+        name = row_key.value
+        assert name is not None, "No simulation selected."
+
+        self.notify(f"⏳ Syncing simulation [bold]{name}[/bold]…", timeout=2.0)
+        self.remote[self.uid].rsync(name)
+        self.notify(f"✔️ Synced simulation [bold]{name}[/bold]", timeout=2.0)
+        self.app.call_from_thread(self.action_reload)
