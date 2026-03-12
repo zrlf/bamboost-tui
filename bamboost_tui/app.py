@@ -140,4 +140,7 @@ class BamboostApp(App):
 
 
 if __name__ == "__main__":
-    BamboostApp(watch_css=False, ansi_color=True).run()
+    result = BamboostApp(watch_css=False, ansi_color=True).run()
+
+    if result:
+        print(result, end="")

@@ -24,4 +24,10 @@ def main():
     app = BamboostApp(
         watch_css=True, ansi_color=args.color, initial_collection_path=args.path
     )
-    app.run()
+    res = app.run()
+
+    if res:
+        import sys
+
+        sys.stdout.write(res)
+        sys.stdout.flush()
