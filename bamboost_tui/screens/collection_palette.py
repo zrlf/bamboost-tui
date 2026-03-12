@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
+import textual
 from rich.console import Group
 from rich.style import Style as RichStyle
 from rich.table import Column, Table
@@ -17,7 +18,7 @@ from bamboost_tui.command_palette import CommandPalette
 
 if TYPE_CHECKING:
     from bamboost.core.remote import Remote
-    from bamboost.index.sqlmodel import CollectionORM
+    from bamboost.index.store import CollectionRecord
 
 
 class CollectionHit(Hit):
@@ -29,7 +30,7 @@ class CollectionHit(Hit):
     def __init__(
         self,
         score: float,
-        collection: CollectionORM,
+        collection: CollectionRecord,
         picker: CollectionProvider,
         matcher: Matcher | None = None,
     ) -> None:
@@ -64,6 +65,30 @@ class CollectionHit(Hit):
             Text(str(coll.simulations.__len__()), styles["count"]),
         )
         return Group(tab, Text("last modified: ", styles["help"]))
+
+
+class UpdateDatabaseHit(Hit):
+    class Fetch(Message):
+        def __init__(self, remote: Remote) -> None:
+            self.remote = remote
+            super().__init__()
+
+    def __init__(
+        self,
+        matcher: Matcher | None,
+        remote: Remote,
+        picker: RemoteCollectionProvider,
+    ) -> None:
+        text = "Update database"
+        if isinstance(matcher, Matcher):
+            score = matcher.match(text)
+        else:
+            score = 1.0
+        super().__init__(
+            score,
+            Text(text, style="command-palette--help-text"),
+            lambda: picker.screen.post_message(UpdateDatabaseHit.Fetch(remote)),
+        )
 
 
 class CollectionProvider(Provider):
@@ -133,7 +158,7 @@ class RemoteCollectionProvider(CollectionProvider):
             "command-palette--help-text", partial=True
         )
 
-        remote = getattr(self.screen, "_remote", None)
+        remote = getattr(self.screen, "_active_remote")
         if remote is None:
             self.collections = []
             self._widths = (0, 0, 0)
@@ -149,6 +174,20 @@ class RemoteCollectionProvider(CollectionProvider):
                 )
             )
         self._widths = widths
+
+    async def search(self, query: str) -> Hits:
+        matcher = self.matcher(query)
+        for coll in self.collections:
+            score = matcher.match(coll.uid + coll.path)
+            if score > 0:
+                yield CollectionHit(score, coll, self, matcher)
+        yield UpdateDatabaseHit(matcher, getattr(self.screen, "_active_remote"), self)
+
+    async def discover(self) -> Hits:
+        for coll in self.collections:
+            # yield Hit(1.0, self._render(coll), self.app.pop_screen)
+            yield CollectionHit(1.0, coll, self)
+        yield UpdateDatabaseHit(None, getattr(self.screen, "_active_remote"), self)
 
 
 class CollectionPalette(CommandPalette):
@@ -174,9 +213,23 @@ class RemoteCollectionPalette(CommandPalette):
     }
 
     def __init__(self, remote: "Remote"):
-        self._remote = remote
         super().__init__(
             providers=[RemoteCollectionProvider],
             placeholder=f"Search remote collections ({remote._remote_url})",
             id="remote-collection-picker",
         )
+
+    @textual.on(UpdateDatabaseHit.Fetch)
+    def _fetch_remote_collections(self, message: UpdateDatabaseHit.Fetch) -> None:
+        remote = message.remote
+        self.app.notify(
+            f"⏳ Fetching remote database from [bold]{remote._remote_url}[/bold]…",
+            timeout=3.0,
+        )
+        remote.fetch_remote_database()
+        self.app.notify(
+            f"✅ Successfully fetched remote database from [bold]{remote._remote_url}[/bold].",
+            timeout=3.0,
+        )
+        # stop propagation of message
+        message.stop()

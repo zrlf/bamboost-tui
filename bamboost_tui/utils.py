@@ -2,9 +2,8 @@ from __future__ import annotations
 
 import importlib.util
 from types import ModuleType
-from typing import MutableMapping, TypeVar, cast
+from typing import TYPE_CHECKING, MutableMapping, TypeVar, cast
 
-from termcolor.termcolor import TYPE_CHECKING
 from textual import events
 from textual.app import App
 from textual.binding import Binding, BindingType

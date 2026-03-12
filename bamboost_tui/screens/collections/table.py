@@ -5,6 +5,8 @@ import subprocess
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+from bamboost import Simulation
+from bamboost.constants import UID_SEPARATOR
 from rich.highlighter import ReprHighlighter
 from rich.text import Text
 from textual import work
@@ -23,9 +25,8 @@ from bamboost_tui.widgets.confirmation import ModalPrompt
 
 if TYPE_CHECKING:
     import pandas as pd
-    from pandas import DataFrame
-
     from bamboost.core.remote import Remote
+    from pandas import DataFrame
 
 REPR_HIGHLIGHTER = ReprHighlighter()
 
@@ -221,7 +222,12 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
 
         from bamboost_tui.screens.hdfview import HDFViewer
 
-        self.app.push_screen(HDFViewer(self.uid, name))
+        if self.remote is not None:
+            simulation = self.remote[self.uid][name]
+        else:
+            simulation = Simulation.from_uid(f"{self.uid}{UID_SEPARATOR}{name}")
+
+        self.app.push_screen(HDFViewer(simulation))
 
     def action_cursor_to_end(self):
         self.cursor_coordinate = Coordinate(
@@ -317,6 +323,13 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
         self.notify("✔️ Reloaded data", timeout=1.0)
 
     async def action_sync(self):
+        if self.remote is not None:
+            self.notify(
+                "Sync not supported for remote collections. For remote collections, use rsync (c>r)",
+                severity="warning",
+                timeout=2.0,
+            )
+            return
         index = get_index()
         # check if the path is correct
         index.resolve_path(self.uid)
