@@ -36,3 +36,26 @@ def get_app() -> "BamboostApp":
     from textual._context import active_app
 
     return active_app.get()  # pyright: ignore[reportReturnType]
+
+
+def get_uid(app: "BamboostApp | None" = None) -> str | None:
+    """Get the uid of the selected collection."""
+    from bamboost_tui.screens.collections import ScreenCollection
+    from bamboost_tui.screens.collections.placeholder import Placeholder
+
+    if app is None:
+        app = get_app()
+    screen = app.screen
+
+    if not isinstance(screen, ScreenCollection):
+        raise RuntimeError("Not on a collection screen")
+
+    table = screen._table_container._active_widget
+    if isinstance(table, Placeholder):
+        get_app().notify(
+            "No collection table available. Doing nothing.", severity="information"
+        )
+        return
+
+    name = table._row_locations.get_key(table.cursor_row).value
+    return f"{table.uid}:{name}"

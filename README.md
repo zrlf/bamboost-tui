@@ -41,10 +41,25 @@ plugins = [
 A very simple example of a custom command is:
 
 ```python
-from bamboost_tui.plugins import CustomBinding, get_app
+from bamboost_tui.plugins import CustomBinding, get_app, get_uid
+
 
 def greet():
     get_app().notify("Hello, world!")
+
+
+def print_uid_to_console():
+    """This function demonstrates how to get the UID of the currently selected item, and
+    print it to stdout for a pipe or something."""
+    app = get_app()
+
+    # Giving the app as an argument is optional, you can also call get_uid() without an argument
+    # uid is the full UID of the currently selected item, e.g. "ABCD1234:my-simulation"
+    uid = get_uid(app)
+
+    # We can output the UID to the console by giving the apps exit function a string argument!
+    app.exit(uid)
+
 
 BINDINGS = [
     CustomBinding(
@@ -52,7 +67,13 @@ BINDINGS = [
         action=greet,
         description="Say hello very loudly",
         id="custom.greeting",
-    )
+    ),
+    CustomBinding(
+        "ctrl+y",
+        print_uid_to_console,
+        "Print my UID to the console",
+        "custom.print_uid",
+    ),
 ]
 ```
 
