@@ -1,3 +1,16 @@
+## 0.4.0 (2026-03-12)
+
+### Feat
+
+- add support for remotes
+- add support for remotes (initial commit by agent)
+- add remote database support to the TUI
+
+### Fix
+
+- address code review feedback - fix typo and remove class-variable
+anti-pattern
+
 ## 0.3.1 (2026-02-11)
 
 ### Feat

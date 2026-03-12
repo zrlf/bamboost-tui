@@ -1,6 +1,6 @@
 [project]
 name = "bamboost-tui"
-version = "0.3.1"
+version = "0.4.0"
 description = "A terminal user interface for bamboost. A tool to view and manage simulation data."
 readme = "README.md"
 authors = [
@@ -27,9 +27,6 @@ typeCheckingMode = "basic"
 reportOptionalMemberAccess = false
 reportOptionalSubscript = false
 useLibraryCodeForTypes = true
-
-[tool.uv.sources]
-bamboost = { path = "../bamboost", editable = true }
 
 [tool.commitizen]
 name = "cz_conventional_commits"
