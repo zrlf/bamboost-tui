@@ -528,3 +528,42 @@ ModalPrompt {
         background: $background;
     }
 }
+
+# -------------------------
+# CELL TOOLBOX
+# -------------------------
+
+CellContentScreen {
+    align: center middle;
+    background: transparent;
+
+    #cell-content-container {
+        width: 60%;
+        min-width: 80;
+        height: 70%;
+        border: round $border;
+        background: $background-cp;
+        padding: 0;
+    }
+
+    #cell-content-label {
+        width: 100%;
+        height: 1;
+        content-align: left middle;
+        text-style: bold;
+        background: transparent;
+        color: $text-muted;
+    }
+
+    #cell-content-text-container {
+        width: 100%;
+        height: 1fr;
+        padding: 0 1;
+    }
+
+    #cell-content-text {
+        width: 100%;
+        height: auto;
+    }
+}
+

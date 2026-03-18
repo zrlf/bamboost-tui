@@ -66,9 +66,7 @@ class CollectionHeader(Static, can_focus=False):
     def update_uid(self, uid: str | None, remote: Remote | None = None) -> None:
         """Update the UID and path in the header."""
         self.update(
-            content=self._get_rich_table(
-                uid or "", self._get_path(uid, remote), remote
-            )
+            content=self._get_rich_table(uid or "", self._get_path(uid, remote), remote)
         )
 
 

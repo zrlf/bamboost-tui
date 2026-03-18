@@ -20,7 +20,7 @@ from typing_extensions import Self
 
 from bamboost_tui.commandline import CommandLine, CommandMessage
 from bamboost_tui.utils import KeySubgroupsMixin, get_index
-from bamboost_tui.widgets import ModifiedDataTable, SortOrder
+from bamboost_tui.widgets import CellContentScreen, ModifiedDataTable, SortOrder
 from bamboost_tui.widgets.confirmation import ModalPrompt
 
 if TYPE_CHECKING:
@@ -30,15 +30,21 @@ if TYPE_CHECKING:
 
 REPR_HIGHLIGHTER = ReprHighlighter()
 
+MAX_CELL_WIDTH = 50
+
 
 def cell_highlighter(cell: object) -> Text:
     if isinstance(cell, datetime):
         cell = cell.strftime("%Y-%m-%d %H:%M:%S")
 
+    cell_str = str(cell)
+    if len(cell_str) > MAX_CELL_WIDTH:
+        cell_str = cell_str[: MAX_CELL_WIDTH - 3] + "..."
+
     highlighted = REPR_HIGHLIGHTER(
         Text(
-            str(cell),
-            justify="right" if str(cell).isdecimal() else "left",
+            cell_str,
+            justify="right" if cell_str.isdecimal() else "left",
         )
     )
     return highlighted
@@ -64,6 +70,7 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
         Binding("r", "reload", "reload data", show=False, id="collection.reload"),
         Binding("s", "sort_column", "sort column", show=False, id="collection.sort"),
         Binding("d", "delete", "delete simulation", show=False, id="collection.delete"),
+        Binding("i", "show_full_cell", "show full cell content", show=True),
         Binding(
             "o>p",
             "open_paraview",
@@ -215,6 +222,14 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
         self.sort(key, reverse=sort_order.value)
         self._sort_column = key
         self._sort_column_order = sort_order
+
+    def action_show_full_cell(self):
+        coordinate = self.cursor_coordinate
+        cell_data = self.get_cell_at(coordinate)
+        column_key = self._column_locations.get_key(coordinate.column)
+        column_name = str(column_key.value) if column_key else "Unknown"
+
+        self.app.push_screen(CellContentScreen(cell_data, column_name))
 
     def action_select_cursor(self):
         name = self._row_locations.get_key(self.cursor_row).value

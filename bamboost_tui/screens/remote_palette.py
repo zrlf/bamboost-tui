@@ -83,9 +83,7 @@ class RemoteProvider(Provider):
         for r in self.remotes:
             widths = tuple(
                 max(width, len(str(cell)))
-                for width, cell in zip(
-                    widths, (r._remote_url, r._workspace_name or "")
-                )
+                for width, cell in zip(widths, (r._remote_url, r._workspace_name or ""))
             )
         self._widths = widths
 
