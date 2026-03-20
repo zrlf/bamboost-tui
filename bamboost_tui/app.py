@@ -2,28 +2,19 @@
 from __future__ import annotations
 
 from types import ModuleType
-from typing import TypedDict
 
-from bamboost import config
 from textual import work
 from textual.app import App
 from textual.binding import Binding
 from textual.css.query import NoMatches
 from textual.widgets import HelpPanel
 
+from bamboost_tui.config import config_tui
 from bamboost_tui.plugins import CustomBinding
 from bamboost_tui.screens.collections import ScreenCollection
 from bamboost_tui.screens.keybind_palette import KeybindPalette
 from bamboost_tui.theme import ANSI_THEME
 from bamboost_tui.utils import get_index, import_module_from_path
-
-
-class Config(TypedDict):
-    keys: dict[str, str]
-    plugins: list[str]
-
-
-config_tui: Config = config._remainder.get("tui", {})
 
 
 class BamboostApp(App):

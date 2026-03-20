@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import subprocess
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Iterable
 
 from bamboost import Simulation
 from bamboost.constants import UID_SEPARATOR
@@ -19,6 +19,7 @@ from textual.widgets.data_table import ColumnKey
 from typing_extensions import Self
 
 from bamboost_tui.commandline import CommandLine, CommandMessage
+from bamboost_tui.config import config_tui
 from bamboost_tui.utils import KeySubgroupsMixin, get_index
 from bamboost_tui.widgets import CellContentScreen, ModifiedDataTable, SortOrder
 from bamboost_tui.widgets.confirmation import ModalPrompt
@@ -32,9 +33,21 @@ REPR_HIGHLIGHTER = ReprHighlighter()
 MAX_CELL_WIDTH = 50
 
 
+def _format_iterable(obj: object) -> str:
+    if isinstance(obj, Iterable) and not isinstance(obj, str):
+        return _format_iterable("[" + ", ".join(map(_format_iterable, obj)) + "]")
+    if isinstance(obj, float):
+        return str(round(obj, config_tui["floatPrecision"]))
+    return str(obj)
+
+
 def cell_highlighter(cell: object) -> Text:
     if isinstance(cell, datetime):
         cell = cell.strftime("%Y-%m-%d %H:%M:%S")
+    elif isinstance(cell, float):
+        cell = str(round(cell, config_tui["floatPrecision"]))
+    elif isinstance(cell, Iterable) and not isinstance(cell, str):
+        cell = _format_iterable(cell)
 
     cell_str = str(cell)
     if len(cell_str) > MAX_CELL_WIDTH:
