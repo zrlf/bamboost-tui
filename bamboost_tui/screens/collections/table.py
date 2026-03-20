@@ -26,7 +26,6 @@ from bamboost_tui.widgets.confirmation import ModalPrompt
 if TYPE_CHECKING:
     import pandas as pd
     from bamboost.core.remote import Remote
-    from pandas import DataFrame
 
 REPR_HIGHLIGHTER = ReprHighlighter()
 
@@ -136,15 +135,33 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
         from bamboost import config
 
         if self.remote is not None:
-            self.df: DataFrame = self.remote[self.uid].df
+            df = self.remote[self.uid].df
         else:
-            self.df: DataFrame = get_index().collection(self.uid).to_pandas()
-        self.df.sort_values(
-            config.options.sortTableKey,
-            inplace=True,
-            ascending=config.options.sortTableOrder == "asc",
-            ignore_index=True,
-        )
+            df = get_index().collection(self.uid).to_pandas()
+
+        if not df.empty:
+            sort_key = config.options.sortTableKey
+            try:
+                df.sort_values(
+                    sort_key,
+                    inplace=True,
+                    ascending=config.options.sortTableOrder == "asc",
+                    ignore_index=True,
+                )
+                self._sort_column = ColumnKey(sort_key)
+                self._sort_column_order = (
+                    SortOrder.DESC
+                    if config.options.sortTableOrder == "desc"
+                    else SortOrder.ASC
+                )
+            except KeyError:
+                self.notify(
+                    f"Column [bold]{config.options.sortTableKey}[/bold] not found for sorting.",
+                    severity="information",
+                    timeout=4.0,
+                )
+
+        self.df = df
         self.loading = False
         self.focus()
 
