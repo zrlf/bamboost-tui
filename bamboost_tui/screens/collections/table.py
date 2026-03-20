@@ -30,14 +30,15 @@ if TYPE_CHECKING:
 
 REPR_HIGHLIGHTER = ReprHighlighter()
 
-MAX_CELL_WIDTH = 50
+MAX_CELL_WIDTH = config_tui["maxCellWidth"]
+FLOAT_PRECISION = config_tui["floatPrecision"]
 
 
 def _format_iterable(obj: object) -> str:
     if isinstance(obj, Iterable) and not isinstance(obj, str):
         return _format_iterable("[" + ", ".join(map(_format_iterable, obj)) + "]")
     if isinstance(obj, float):
-        return str(round(obj, config_tui["floatPrecision"]))
+        return str(round(obj, FLOAT_PRECISION))
     return str(obj)
 
 
@@ -45,7 +46,7 @@ def cell_highlighter(cell: object) -> Text:
     if isinstance(cell, datetime):
         cell = cell.strftime("%Y-%m-%d %H:%M:%S")
     elif isinstance(cell, float):
-        cell = str(round(cell, config_tui["floatPrecision"]))
+        cell = str(round(cell, FLOAT_PRECISION))
     elif isinstance(cell, Iterable) and not isinstance(cell, str):
         cell = _format_iterable(cell)
 
