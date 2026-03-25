@@ -69,7 +69,7 @@ class Header(Static, can_focus=False):
     path: str
 
     def __init__(self, uid: str, path: StrPath) -> None:
-        self.uid = uid
+        self.uid = str(uid)
         self.path = path if isinstance(path, str) else path.as_posix()
         super().__init__(id="nav-header")
 
