@@ -572,3 +572,45 @@ Screen.visual-mode Footer {
     color: $text;
 }
 
+Screen.visual-mode Footer {
+    background: $accent 30%;
+    color: $text;
+}
+
+# -------------------------
+# EXPERIMENTAL DESIGN INFO
+# -------------------------
+
+ExpDesignInfoScreen {
+    align: center middle;
+    background: transparent;
+
+    #exp-design-container {
+        width: 60%;
+        min-width: 80;
+        height: 70%;
+        border: round $border;
+        border-title-align: center;
+        border-title-color: $border;
+        background: $background-cp;
+        padding: 0
+    }
+
+    & ParamsView {
+        padding: 0 1;
+        background: $background;
+        border: round $border;
+        border-title-color: $border;
+
+        &:focus-within {
+            border: round $foreground;
+            border-title-color: $foreground;
+        }
+        & > .--key {
+            color: $primary;
+        }
+        & > .--value {
+            color: $foreground;
+        }
+    }
+}
