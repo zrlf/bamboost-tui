@@ -77,15 +77,19 @@ class Header(Static, can_focus=False):
         tab = Table.grid("key", "value", padding=(0, 3))
         tab.add_row(
             "UID:",
-            self.uid,
+            f"[@click=copy('{self.uid}')]{self.uid}[/]",
             style=self.get_component_rich_style("--uid", partial=True),
         )
         tab.add_row(
             "Path:",
-            self.path,
+            f"[@click=copy('{self.path}')]{self.path}[/]",
             style=self.get_component_rich_style("--path", partial=True),
         )
         return tab
+
+    def action_copy(self, value: str) -> None:
+        self.app.copy_to_clipboard(value)
+        self.notify(f"Copied to clipboard: {value}", severity="information", timeout=2)
 
 
 class AttrsView(VerticalScroll, can_focus=True):

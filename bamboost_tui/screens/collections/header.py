@@ -41,11 +41,13 @@ class CollectionHeader(Static, can_focus=False):
         tab = Table.grid("key", "value", padding=(0, 3))
         if uid:
             tab.add_row(
-                "UID:", uid, style=self.get_component_rich_style("--uid", partial=True)
-            )
+            "UID:", 
+            f"[@click=copy('{uid}')]{uid}[/]", 
+            style=self.get_component_rich_style("--uid", partial=True)
+        )
             tab.add_row(
                 "Path:",
-                path or "[collection not found]",
+                f"[@click=copy('{path}')]{path}[/]" or "[collection not found]",
                 style=self.get_component_rich_style("--path", partial=True),
             )
             if remote is not None:
@@ -55,6 +57,10 @@ class CollectionHeader(Static, can_focus=False):
                     style=self.get_component_rich_style("--remote", partial=True),
                 )
         return tab
+
+    def action_copy(self, value: str) -> None:
+        self.app.copy_to_clipboard(value)
+        self.notify(f"Copied to clipboard: {value}", severity="information", timeout=2)
 
     def _get_path(self, uid: str | None, remote: Remote | None = None) -> str:
         if remote is not None:
