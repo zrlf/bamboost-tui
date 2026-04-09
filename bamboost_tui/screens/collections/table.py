@@ -20,7 +20,7 @@ from textual.widgets.data_table import ColumnKey
 from bamboost_tui.commandline import CommandLine, CommandMessage
 from bamboost_tui.config import config_tui
 from bamboost_tui.utils import KeySubgroupsMixin, get_index
-from bamboost_tui.widgets import CellContentScreen, ModifiedDataTable, SortOrder
+from bamboost_tui.widgets import CellContentScreen, ModifiedDataTable, SortOrder, ExpDesignInfoScreen
 from bamboost_tui.widgets.confirmation import ModalPrompt
 
 if TYPE_CHECKING:
@@ -107,6 +107,7 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
         Binding("s", "sort_column", "sort column", show=False, id="collection.sort"),
         Binding("d", "delete", "delete simulation", show=False, id="collection.delete"),
         Binding("i", "show_full_cell", "show full cell content", show=True),
+        Binding("e>d", "show_exp_design_info", "show experiment design of collection", show=True),
         Binding(
             "o>p",
             "open_paraview",
@@ -368,6 +369,12 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
         column_name = str(column_key.value) if column_key else "Unknown"
 
         self.app.push_screen(CellContentScreen(cell_data, column_name))
+
+    def action_show_exp_design_info(self):
+        if self.df is not None:
+            metadata_keys = list(get_index().collection(self.uid)._fields)
+            exclude_keys = [*metadata_keys, "name", "status", "submitted"]
+            self.app.push_screen(ExpDesignInfoScreen(df=self.df, exclude_keys=exclude_keys))
 
     def action_select_cursor(self):
         name = self._row_locations.get_key(self.cursor_row).value
