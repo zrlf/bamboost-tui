@@ -24,5 +24,7 @@ ANSI_THEME = Theme(
         "border": "ansi_bright_black",
         "border-focus": "ansi_blue",
         "footer-background": "ansi_black",
+        "row-selected-background": "ansi_blue",
+        "row-selected-color": "ansi_bright_white",
     },
 )

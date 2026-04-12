@@ -21,6 +21,7 @@ from rich.text import Text
 from textual._types import SegmentLines
 from textual.color import Color
 from textual.coordinate import Coordinate
+from textual.reactive import var
 from textual.renderables.styled import Styled
 from textual.widgets._data_table import (
     _EMPTY_TEXT,
@@ -49,6 +50,10 @@ class SortOrder(Enum):
 
 
 class ModifiedDataTable(DataTable):
+    COMPONENT_CLASSES = DataTable.COMPONENT_CLASSES | {"datatable--row-selected"}
+    visual_start_row: var[int | None] = var(None)
+    _selection_update_count: var[int] = var(0)
+
     def __init__(
         self,
         cell_highlighter: Callable[[object], Text] | None = None,
@@ -73,6 +78,7 @@ class ModifiedDataTable(DataTable):
         self._header_cell_render_cache = {}
         self._sort_column: ColumnKey | None = None
         self._sort_column_order = SortOrder.DESC
+        self.selected_rows: set[RowKey] = set()
 
         super().__init__(
             show_header=show_header,
@@ -91,6 +97,18 @@ class ModifiedDataTable(DataTable):
             classes=classes,
             disabled=disabled,
         )
+
+    def _invalidate_selection_caches(self) -> None:
+        self._row_render_cache.clear()
+        self._cell_render_cache.clear()
+
+    def _is_row_highlighted(self, row_index: int, row_key: RowKey) -> bool:
+        if row_key in self.selected_rows:
+            return True
+        if self.visual_start_row is not None:
+            start, end = sorted([self.visual_start_row, self.cursor_row])
+            return start <= row_index <= end
+        return False
 
     def _render_line_in_row(
         self,
@@ -128,6 +146,8 @@ class ModifiedDataTable(DataTable):
             self._show_hover_cursor,
             self._update_count,
             self._pseudo_class_state,
+            self._selection_update_count,
+            self.visual_start_row,
         )
 
         if cache_key in self._row_render_cache:
@@ -148,10 +168,16 @@ class ModifiedDataTable(DataTable):
         if self._labelled_row_exists and self.show_row_labels:
             # The width of the row label is updated again on idle
             cell_location = Coordinate(row_index, -1)
+            label_style = header_style
+            if self._is_row_highlighted(row_index, row_key):
+                selected_style = self.get_component_styles(
+                    "datatable--row-selected"
+                ).rich_style
+                label_style += selected_style
             label_cell_lines = render_cell(
                 row_index,
                 -1,
-                header_style,
+                label_style,
                 width=self._row_label_column_width,
                 cursor=should_highlight(cursor_location, cell_location, "row"),
                 hover=should_highlight(hover_location, cell_location, cursor_type),
@@ -164,6 +190,11 @@ class ModifiedDataTable(DataTable):
             else:
                 fixed_style = self.get_component_styles("datatable--fixed").rich_style
                 fixed_style += Style.from_meta({"fixed": True})
+                if self._is_row_highlighted(row_index, row_key):
+                    selected_style = self.get_component_styles(
+                        "datatable--row-selected"
+                    ).rich_style
+                    fixed_style += selected_style
             for column_index, column in enumerate(
                 self.ordered_columns[: self.fixed_columns]
             ):
@@ -179,6 +210,11 @@ class ModifiedDataTable(DataTable):
                 fixed_row.append(fixed_cell_lines)
 
         row_style = self._get_row_style(row_index, base_style)
+        if self._is_row_highlighted(row_index, row_key):
+            selected_style = self.get_component_styles(
+                "datatable--row-selected"
+            ).rich_style
+            row_style += selected_style
 
         scrollable_row = []
         for column_index, column in enumerate(self.ordered_columns):
@@ -319,7 +355,8 @@ class ModifiedDataTable(DataTable):
             self._show_hover_cursor,
             self._update_count,
             self._pseudo_class_state,
-        )  # pyright: ignore[reportAssignmentType]
+            self._selection_update_count,
+        )  # ty:ignore[invalid-assignment]
 
         if is_header_cell:
             if cell_cache_key in self._header_cell_render_cache:
@@ -328,7 +365,7 @@ class ModifiedDataTable(DataTable):
         if cell_cache_key in self._cell_render_cache and not is_header_cell:
             return self._cell_render_cache[cell_cache_key]
 
-        base_style += Style.from_meta({"row": row_index, "column": column_index})
+        style = base_style + Style.from_meta({"row": row_index, "column": column_index})
         row_label, row_cells = self._get_row_renderables(row_index)
 
         if is_row_label_cell:
@@ -379,7 +416,7 @@ class ModifiedDataTable(DataTable):
         lines = self.app.console.render_lines(
             Styled(
                 Padding(cell, (0, self.cell_padding)),
-                pre_style=base_style + component_style,
+                pre_style=style + component_style,
                 post_style=post_style,
             ),
             options,

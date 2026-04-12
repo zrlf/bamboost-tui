@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import subprocess
 from datetime import datetime
-from typing import TYPE_CHECKING, Iterable
+from typing import TYPE_CHECKING, Iterable, Self
 
 from bamboost import Simulation
 from bamboost.constants import UID_SEPARATOR
@@ -16,7 +16,6 @@ from textual.geometry import Offset, Region
 from textual.reactive import var
 from textual.widgets import DataTable
 from textual.widgets.data_table import ColumnKey
-from typing_extensions import Self
 
 from bamboost_tui.commandline import CommandLine, CommandMessage
 from bamboost_tui.config import config_tui
@@ -64,7 +63,7 @@ def cell_highlighter(cell: object) -> Text:
 
 
 class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=False):
-    BINDINGS = [
+    BINDINGS = [  # noqa: RUF012
         # Navigation
         Binding("enter", "select_cursor", "show simulation", show=False),
         Binding("j,down", "cursor_down", "move cursor down", show=False),
@@ -80,6 +79,30 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
         # Commands
         Binding(":", "command_line", "enter command mode", show=True),
         Binding("/", 'command_line("goto", "")', "jump to column", show=False),
+        Binding(
+            "space",
+            "toggle_selection",
+            "toggle selection",
+            show=False,
+            id="collection.toggle_select",
+        ),
+        Binding(
+            "v",
+            "toggle_visual_mode",
+            "visual mode",
+            show=False,
+            id="collection.visual_mode",
+        ),
+        Binding(
+            "escape",
+            "cancel_visual_mode",
+            "cancel visual mode",
+            show=False,
+            id="collection.cancel_visual",
+        ),
+        Binding(
+            "y", "copy_uids", "copy selected UIDs", show=True, id="collection.copy_uids"
+        ),
         Binding("r", "reload", "reload data", show=False, id="collection.reload"),
         Binding("s", "sort_column", "sort column", show=False, id="collection.sort"),
         Binding("d", "delete", "delete simulation", show=False, id="collection.delete"),
@@ -114,8 +137,16 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
         "datatable--label",
     }
     DEFAULT_CSS = """
+    $row-selected-background: $accent 30%;
+    $row-selected-color: $accent;
+
     CollectionTable {
         layers: bottom top;
+    }
+    CollectionTable > .datatable--row-selected {
+        background: $row-selected-background;
+        color: $row-selected-color;
+        text-style: bold italic;
     }
     """
 
@@ -209,6 +240,14 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
     def watch_cursor_coordinate(
         self, old_coordinate: Coordinate, new_coordinate: Coordinate
     ) -> None:
+        if self.visual_start_row is not None:
+            r_min = min(old_coordinate.row, new_coordinate.row)
+            r_max = max(old_coordinate.row, new_coordinate.row)
+            for r in range(r_min, r_max + 1):
+                self.refresh_row(r)
+            super().watch_cursor_coordinate(old_coordinate, new_coordinate)
+            return
+
         old_region = self._get_cell_region(old_coordinate)
         new_region = self._get_cell_region(new_coordinate)
 
@@ -231,9 +270,74 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
         # TODO: This may be remmoved
         super().watch_cursor_coordinate(old_coordinate, new_coordinate)
 
+    def watch_visual_start_row(self, old: int | None, new: int | None) -> None:
+        if new is not None:
+            self.screen.add_class("visual-mode")
+        else:
+            self.screen.remove_class("visual-mode")
+
     # -------------------------------------------------------------------------
     # Actions
     # -------------------------------------------------------------------------
+    def action_toggle_selection(self) -> None:
+        if self.visual_start_row is not None:
+            start, end = sorted([self.visual_start_row, self.cursor_row])
+            for i in range(start, end + 1):
+                key = self._row_locations.get_key(i)
+                if key is not None:
+                    if key in self.selected_rows:
+                        self.selected_rows.remove(key)
+                    else:
+                        self.selected_rows.add(key)
+                    self.refresh_row(i)
+            self.visual_start_row = None
+            self._selection_update_count += 1
+            self.refresh()
+        else:
+            row_key = self._row_locations.get_key(self.cursor_row)
+            if row_key is not None:
+                if row_key in self.selected_rows:
+                    self.selected_rows.remove(row_key)
+                else:
+                    self.selected_rows.add(row_key)
+                self.refresh_row(self.cursor_row)
+            self.action_cursor_down()
+            self._selection_update_count += 1
+            self.refresh()
+
+    def action_toggle_visual_mode(self) -> None:
+        if self.visual_start_row is None:
+            self.visual_start_row = self.cursor_row
+            self.refresh_row(self.cursor_row)
+        else:
+            self._selection_update_count += 1
+            self.refresh_row(self.cursor_row)
+            self.visual_start_row = None
+
+    def action_cancel_visual_mode(self) -> None:
+        if self.visual_start_row is not None:
+            r_min = min(self.visual_start_row, self.cursor_row)
+            r_max = max(self.visual_start_row, self.cursor_row)
+            self.visual_start_row = None
+            self._selection_update_count += 1
+            for r in range(r_min, r_max + 1):
+                self.refresh_row(r)
+
+    def action_copy_uids(self) -> None:
+        if self.selected_rows:
+            target_keys = list(self.selected_rows)
+        else:
+            current_key = self._row_locations.get_key(self.cursor_row)
+            if current_key is None:
+                self.notify("No row selected", severity="warning")
+                return
+            target_keys = [current_key]
+
+        uids = [f"{self.uid}{UID_SEPARATOR}{key.value}" for key in target_keys]
+        text = "\n".join(uids)
+        self.app.copy_to_clipboard(text)
+        self.notify(f"Copied {len(uids)} UID(s) to clipboard")
+
     def action_sort_column(
         self, column_key: ColumnKey | str | None = None, reverse: bool | None = None
     ):
