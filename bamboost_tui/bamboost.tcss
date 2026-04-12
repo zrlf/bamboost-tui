@@ -567,3 +567,8 @@ CellContentScreen {
     }
 }
 
+Screen.visual-mode Footer {
+    background: $accent 30%;
+    color: $text;
+}
+
