@@ -44,8 +44,7 @@ class EDParam:
             else:
                 val_str = str(val)
         else:
-            # For variables, show the count or a preview
-            val_str = str(self.unique_vals[:2])
+            val_str = str(self.unique_vals)
 
         # 2. Create Rich Text objects
         name_text = Text(self.name, style="bold cyan")
