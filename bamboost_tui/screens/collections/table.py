@@ -22,6 +22,7 @@ from bamboost_tui.config import config_tui
 from bamboost_tui.utils import KeySubgroupsMixin, get_index
 from bamboost_tui.widgets import CellContentScreen, ModifiedDataTable, SortOrder, ExpDesignInfoScreen
 from bamboost_tui.widgets.confirmation import ModalPrompt
+from bamboost_tui.widgets.status_footer import StatusFooter
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -363,6 +364,8 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
         self._sort_column_order = sort_order
 
     def action_show_full_cell(self):
+        status_bar = self.screen.query_one(StatusFooter)
+        status_bar.display("Showing full cell content.")
         coordinate = self.cursor_coordinate
         cell_data = self.get_cell_at(coordinate)
         column_key = self._column_locations.get_key(coordinate.column)
@@ -482,7 +485,10 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
 
         self.notify("✔️ Reloaded data", timeout=1.0)
 
+    @work(thread=True, exclusive=True)
     async def action_sync(self):
+        import time
+
         if self.remote is not None:
             self.notify(
                 "Sync not supported for remote collections. For remote collections, use rsync (c>r)",
@@ -490,14 +496,30 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
                 timeout=2.0,
             )
             return
-        index = get_index()
-        # check if the path is correct
-        index.resolve_path(self.uid)
-        # sync the collection
-        index.sync_collection(self.uid)
-        self.notify("✔️ Synced collection", timeout=1.0)
-        # reload the collection
-        await self.action_reload()
+        
+        bar = self.screen.query_one(StatusFooter)
+
+        def display_sync_progress(current: int, total: int) -> None:
+            def update():
+                if bar.is_mounted: # check if widget is still mounted to avoid crashes on exit
+                    bar.display(f"Syncing collection: {current}/{total}")
+            self.app.call_from_thread(update)
+            # Make sure that the sync progress is visible for a minimum time
+            min_time = 1
+            time.sleep(min_time / total)
+
+        try:
+            self.app.call_from_thread(bar.display, content="Getting the index instance...")
+            index = get_index()
+            # check if the path is correct
+            index.resolve_path(self.uid)
+            # sync the collection
+            index.sync_collection(self.uid, progress_callback=display_sync_progress)
+            self.notify("✔️ Synced collection", timeout=1.0)
+        finally:
+            self.app.call_from_thread(bar.clear)
+            # reload the collection
+            self.app.call_from_thread(self.action_reload)
 
     @work(thread=True)
     async def action_rsync(self):

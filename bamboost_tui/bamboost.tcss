@@ -22,6 +22,22 @@ Rule {
     color: $foreground;
 }
 
+#footer-area {
+    dock: bottom;   /* Stick to the bottom of the screen */
+    height: 2;      /* One line for status, one for footer */
+    width: 100%;
+    background: $surface;
+}
+
+StatusFooter {
+    height: 1;
+    width: 100%;
+    color: white;
+    background: ansi_black; /* Keep for testing */
+    content-align: left middle;
+    padding: 0 1;
+}
+
 Footer {
     &:ansi {
         background: ansi_black;

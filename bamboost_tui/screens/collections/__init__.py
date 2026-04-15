@@ -7,11 +7,11 @@ from bamboost.exceptions import InvalidCollectionError
 from textual import on, work
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Container, Horizontal, Right
+from textual.containers import Container, Horizontal, Right, Vertical
 from textual.reactive import reactive, var
 from textual.screen import Screen
 from textual.widget import Widget
-from textual.widgets import Footer, Tab
+from textual.widgets import Tab ,Footer
 
 from bamboost_tui.commandline import CommandLine as CommandLine
 from bamboost_tui.commandline import CommandMessage as CommandMessage
@@ -33,6 +33,7 @@ from bamboost_tui.utils import get_index as get_index
 from bamboost_tui.widgets import ModifiedDataTable as ModifiedDataTable
 from bamboost_tui.widgets import SortOrder as SortOrder
 from bamboost_tui.widgets.confirmation import ModalPrompt as ModalPrompt
+from bamboost_tui.widgets.status_footer import StatusFooter
 
 if TYPE_CHECKING:
     from bamboost.core.remote import Remote
@@ -118,7 +119,9 @@ class ScreenCollection(Screen, inherit_bindings=False):
             with Right():
                 yield self._tabs
         yield self._table_container
-        yield Footer(disabled=True)
+        with Vertical(id="footer-area"):
+            yield StatusFooter()
+            yield Footer(disabled=True)
 
     def watch_current_uid(self, _old, new: str | None) -> None:
         self.show_collection(uid=new)
