@@ -144,7 +144,7 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
             self._load_data()
         self.focus()
 
-    @work(exclusive=True)
+    @work(thread=True, exclusive=True)
     async def _load_data(self):
         from bamboost import config
 
@@ -175,9 +175,12 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
                     timeout=4.0,
                 )
 
-        self.df = df
-        self.loading = False
-        self.focus()
+        def finalize():
+            self.df = df
+            self.loading = False
+            self.focus()
+
+        self.app.call_from_thread(finalize)
 
     async def watch_df(self, _old, _new: pd.DataFrame | None) -> None:
         if _new is None:
