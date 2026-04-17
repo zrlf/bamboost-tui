@@ -10,7 +10,7 @@ This implementation changes the following:
 from __future__ import annotations
 
 from enum import Enum
-from itertools import zip_longest
+from itertools import zip_longest, chain
 from typing import Callable, Literal, cast
 
 from rich.console import RenderableType
@@ -33,6 +33,8 @@ from textual.widgets._data_table import (
     RowRenderables,
     default_cell_formatter,
 )
+from textual.strip import Strip
+from textual._segment_tools import line_crop
 
 
 class SortOrder(Enum):
@@ -109,6 +111,65 @@ class ModifiedDataTable(DataTable):
             start, end = sorted([self.visual_start_row, self.cursor_row])
             return start <= row_index <= end
         return False
+    
+    def _render_line(self, y: int, x1: int, x2: int, base_style: Style) -> Strip:
+        """Render a (possibly cropped) line into a Strip (a list of segments
+            representing a horizontal line).
+
+        Args:
+            y: Y coordinate of line
+            x1: X start crop.
+            x2: X end crop (exclusive).
+            base_style: Style to apply to line.
+
+        Returns:
+            The Strip which represents this cropped line.
+        """
+
+        width = self.size.width
+
+        try:
+            row_key, y_offset_in_row = self._get_offsets(y)
+        except LookupError:
+            return Strip.blank(width, base_style)
+
+        cache_key = (
+            y,
+            x1,
+            x2,
+            width,
+            self.cursor_coordinate,
+            self.hover_coordinate,
+            base_style,
+            self.cursor_type,
+            self._show_hover_cursor,
+            self._update_count,
+            self._pseudo_class_state,
+            self._selection_update_count,
+        )
+        if cache_key in self._line_cache:
+            return self._line_cache[cache_key]
+
+        fixed, scrollable = self._render_line_in_row(
+            row_key,
+            y_offset_in_row,
+            base_style,
+            cursor_location=self.cursor_coordinate,
+            hover_location=self.hover_coordinate,
+        )
+        fixed_width = sum(
+            column.get_render_width(self)
+            for column in self.ordered_columns[: self.fixed_columns]
+        )
+
+        fixed_line: list[Segment] = list(chain.from_iterable(fixed)) if fixed else []
+        scrollable_line: list[Segment] = list(chain.from_iterable(scrollable))
+
+        segments = fixed_line + line_crop(scrollable_line, x1 + fixed_width, x2, width)
+        strip = Strip(segments).adjust_cell_length(width, base_style).simplify()
+
+        self._line_cache[cache_key] = strip
+        return strip
 
     def _render_line_in_row(
         self,
@@ -134,6 +195,7 @@ class ModifiedDataTable(DataTable):
         # cursor_type = self.cursor_type
         cursor_type = "row"
         show_cursor = self.show_cursor
+        is_selected = row_key in self.selected_rows
 
         cache_key = (
             row_key,
@@ -146,7 +208,7 @@ class ModifiedDataTable(DataTable):
             self._show_hover_cursor,
             self._update_count,
             self._pseudo_class_state,
-            self._selection_update_count,
+            is_selected,
             self.visual_start_row,
         )
 
