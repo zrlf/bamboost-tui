@@ -316,7 +316,7 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
         def _delete(confirm: bool | None):
             if not confirm:
                 return
-            get_index()._drop_simulation(self.uid, name)
+            get_index().drop_simulation(self.uid, name)
             import shutil
 
             path = get_index()._get_collection_path(self.uid).joinpath(name)  # pyright: ignore[reportArgumentType]
