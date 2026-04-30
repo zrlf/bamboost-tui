@@ -9,6 +9,19 @@ from textual.widgets import Static
 
 class Placeholder(Static):
     def compose(self) -> ComposeResult:
+        picker_binding = next(
+            (
+                b.binding
+                for b in self.app.active_bindings.values()
+                if b.binding.action == "toggle_picker"
+            ),
+            None,
+        )
+        key_name = (
+            picker_binding.key_display or picker_binding.key
+            if picker_binding
+            else "???"
+        )
         with Center():
             yield Static(
                 dedent("""
@@ -26,7 +39,7 @@ class Placeholder(Static):
             c = Color.parse(val).rich_color.name
             yield Static(
                 Text.from_markup(
-                    f"No collection selected. Press [bold {c}]Ctrl+M[/bold {c}] to open the collection picker."
+                    f"No collection selected. Press [bold {c}]{key_name}[/bold {c}] to open the collection picker."
                 )
             )
         with Center():
