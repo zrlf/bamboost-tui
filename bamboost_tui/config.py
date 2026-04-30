@@ -8,6 +8,7 @@ class Config(TypedDict):
     plugins: list[str]
     floatPrecision: int
     maxCellWidth: int
+    theme: str
 
 
 default_config: Config = {
@@ -15,5 +16,6 @@ default_config: Config = {
     "maxCellWidth": 50,
     "keys": {},
     "plugins": [],
+    "theme": "gruvbox"
 }
 config_tui: Config = default_config | (config._remainder.get("tui", {}))
