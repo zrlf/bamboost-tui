@@ -9,7 +9,7 @@ from textual.binding import Binding
 from textual.css.query import NoMatches
 from textual.widgets import HelpPanel
 
-from bamboost_tui.config import config_tui
+from bamboost_tui.config import config_tui, default_config
 from bamboost_tui.plugins import CustomBinding
 from bamboost_tui.screens.collections import ScreenCollection
 from bamboost_tui.screens.keybind_palette import KeybindPalette
@@ -61,12 +61,23 @@ class BamboostApp(App):
             self.plugins.append(mod)
 
     def on_mount(self) -> None:
-        if ansi_colors_set := self.ansi_color:
+        config_theme = config_tui.get("theme", None)
+        default_theme = default_config.get("theme")
+
+        if self.ansi_color:
             self.register_theme(ANSI_THEME)
             self.theme = "ansi"
-            self.ansi_color = ansi_colors_set
+
+        elif config_theme:
+            if config_theme in self.available_themes:
+                self.theme = config_theme
+            else:
+                self.notify(
+                    f"Theme '{config_theme}' not available. Falling back to '{default_theme}'."
+                )
+                self.theme = default_theme
         else:
-            self.theme = "gruvbox"
+            self.theme = default_theme
 
         # This fixes the bug that the screen is empty after resuming the app
         self.app_resume_signal.subscribe(self, lambda *_args, **_kwargs: self.refresh())
