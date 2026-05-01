@@ -423,24 +423,25 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
 
     async def action_delete(self):
         row_key = self._row_locations.get_key(self.cursor_row)
-        assert row_key is not None, "No simulation selected."
-        name = row_key.value
-        assert name is not None, "No simulation selected."
+
+        if row_key is None or row_key.value is None:
+            self.notify("No simulation selected.", severity="warning")
+            return
 
         def _delete(confirm: bool | None):
             if not confirm:
                 return
-            get_index().drop_simulation(self.uid, name)
+            get_index().drop_simulation(self.uid, row_key.value or "")
             import shutil
 
-            path = get_index()._get_collection_path(self.uid).joinpath(name)  # pyright: ignore[reportArgumentType]
+            path = get_index()._get_collection_path(self.uid).joinpath(row_key.value)  # pyright: ignore[reportArgumentType]
             shutil.rmtree(path)
 
             # refresh the table
             self.remove_row(row_key)
 
         self.app.push_screen(
-            ModalPrompt(f"Really want to delete simulation [bold]{name}[/bold]"),
+            ModalPrompt(f"Really want to delete simulation [bold]{row_key.value}[/bold]"),
             _delete,
         )
 
