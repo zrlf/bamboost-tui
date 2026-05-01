@@ -6,13 +6,6 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--color",
-        "-c",
-        action="store_false",
-        default=True,
-        help="Use full colors instead of terminal colors.",
-    )
-    parser.add_argument(
         "path",
         default=None,
         nargs="?",
@@ -22,7 +15,7 @@ def main():
     args = parser.parse_args()
 
     app = BamboostApp(
-        watch_css=True, ansi_color=args.color, initial_collection_path=args.path
+        watch_css=True, initial_collection_path=args.path
     )
     res = app.run()
 

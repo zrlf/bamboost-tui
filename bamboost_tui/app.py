@@ -52,6 +52,9 @@ class BamboostApp(App):
         self.initial_collection_path = initial_collection_path
         self.plugins: list[ModuleType] = []
 
+        # register custom themes
+        self.register_theme(ANSI_THEME)
+
         # set the keymap from the config
         self.set_keymap(config_tui.get("keys", {}))
 
@@ -61,22 +64,15 @@ class BamboostApp(App):
             self.plugins.append(mod)
 
     def on_mount(self) -> None:
-        config_theme = config_tui.get("theme", None)
+        config_theme = config_tui.get("theme")
         default_theme = default_config.get("theme")
 
-        if self.ansi_color:
-            self.register_theme(ANSI_THEME)
-            self.theme = "ansi"
-
-        elif config_theme:
-            if config_theme in self.available_themes:
-                self.theme = config_theme
-            else:
-                self.notify(
-                    f"Theme '{config_theme}' not available. Falling back to '{default_theme}'."
-                )
-                self.theme = default_theme
+        if config_theme in self.available_themes:
+            self.theme = config_theme
         else:
+            self.notify(
+                f"Theme '{config_theme}' not available. Falling back to '{default_theme}'."
+            )
             self.theme = default_theme
 
         # This fixes the bug that the screen is empty after resuming the app
@@ -160,7 +156,7 @@ class BamboostApp(App):
 
 
 if __name__ == "__main__":
-    result = BamboostApp(watch_css=False, ansi_color=True).run()
+    result = BamboostApp(watch_css=False).run()
 
     if result:
         print(result, end="")
