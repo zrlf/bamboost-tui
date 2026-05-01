@@ -380,15 +380,18 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
             self.app.push_screen(ExpDesignInfoScreen(df=self.df, exclude_keys=exclude_keys))
 
     def action_select_cursor(self):
-        name = self._row_locations.get_key(self.cursor_row).value
-        assert name is not None, "No simulation selected."
+        row_key = self._row_locations.get_key(self.cursor_row)
+
+        if row_key is None or row_key.value is None:
+            self.notify("No simulation selected.", severity="warning")
+            return
 
         from bamboost_tui.screens.hdfview import HDFViewer
 
         if self.remote is not None:
-            simulation = self.remote[self.uid][name]
+            simulation = self.remote[self.uid][row_key.value]
         else:
-            simulation = Simulation.from_uid(f"{self.uid}{UID_SEPARATOR}{name}")
+            simulation = Simulation.from_uid(f"{self.uid}{UID_SEPARATOR}{row_key.value}")
 
         self.app.push_screen(HDFViewer(simulation))
 
