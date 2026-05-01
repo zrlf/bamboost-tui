@@ -422,28 +422,50 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
             return self.action_sort_column(cmd.column_key, cmd.reverse)
 
     async def action_delete(self):
-        row_key = self._row_locations.get_key(self.cursor_row)
+        """Delete the selected rows, or delete the cursor row if there are none selected."""
 
-        if row_key is None or row_key.value is None:
+        # Get the targets to delete
+        if self.selected_rows:
+            targets = list(self.selected_rows)
+        else:
+            cursor_row = self._row_locations.get_key(self.cursor_row)
+            targets = [cursor_row] if cursor_row is not None else []
+
+        if not targets:
             self.notify("No simulation selected.", severity="warning")
             return
+        
+        # Prepare the prompt message
+        if len(targets) == 1:
+            msg = f"Delete simulation [bold]{targets[0].value}[\bold]?"
+        else:
+            msg = f"Delete [bold]{len(targets)}[\bold] selected simulations?"
 
         def _delete(confirm: bool | None):
             if not confirm:
                 return
-            get_index().drop_simulation(self.uid, row_key.value or "")
+            
             import shutil
+            index = get_index()
 
-            path = get_index()._get_collection_path(self.uid).joinpath(row_key.value)  # pyright: ignore[reportArgumentType]
-            shutil.rmtree(path)
+            for row_key in targets:
+                if row_key.value is None:
+                    continue
 
-            # refresh the table
-            self.remove_row(row_key)
+                try:
+                    index.drop_simulation(self.uid, row_key.value)
+                    path = get_index()._get_collection_path(self.uid).joinpath(row_key.value)  # pyright: ignore[reportArgumentType]
+                    if path.exists():
+                        shutil.rmtree(path)
 
-        self.app.push_screen(
-            ModalPrompt(f"Really want to delete simulation [bold]{row_key.value}[/bold]"),
-            _delete,
-        )
+                    # refresh the table
+                    self.remove_row(row_key)
+                except Exception as e:
+                    self.notify(f"Failed to delete {row_key.value}: {e}", severity="error")
+
+            self.notify(f"Deleted {len(targets)} simulation(s)")
+
+        self.app.push_screen(ModalPrompt(msg), _delete)
 
     def action_open_paraview(self):
         row_key = self._row_locations.get_key(self.cursor_row)
