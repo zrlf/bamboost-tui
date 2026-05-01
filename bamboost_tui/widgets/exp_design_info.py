@@ -80,7 +80,13 @@ class ExperimentalDesignData:
             try:
                 return np.asarray(series.unique())
             except TypeError:
-                hashable_vals = series.map(lambda x: tuple(x) if isinstance(x, list) else x)
+
+                def make_hashable(x):
+                    if isinstance(x, (list, np.ndarray)):
+                        return tuple(make_hashable(item) for item in x)
+                    return x
+                
+                hashable_vals = series.map(make_hashable)
                 return np.asarray(hashable_vals.unique())
         
         all_params = {
