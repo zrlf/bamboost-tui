@@ -462,7 +462,8 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
 
         path = get_index()._get_collection_path(self.uid).joinpath(name)
         with self.app.suspend():
-            subprocess.run([os.getenv("EDITOR", "vi"), path.as_posix()])
+            editor = config_tui.get("editor")
+            subprocess.run([editor, path.as_posix()])
 
     async def action_reload(self):
         previous_coordinate = self.cursor_coordinate
