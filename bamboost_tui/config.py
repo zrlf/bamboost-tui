@@ -1,3 +1,4 @@
+import os
 from typing import TypedDict
 
 from bamboost import config
@@ -9,6 +10,7 @@ class Config(TypedDict):
     floatPrecision: int
     maxCellWidth: int
     theme: str
+    editor: str
 
 
 default_config: Config = {
@@ -16,6 +18,7 @@ default_config: Config = {
     "maxCellWidth": 50,
     "keys": {},
     "plugins": [],
-    "theme": "gruvbox"
+    "theme": "gruvbox",
+    "editor": os.getenv("EDITOR", "vi")
 }
 config_tui: Config = default_config | (config._remainder.get("tui", {}))
