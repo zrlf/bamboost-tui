@@ -456,11 +456,12 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
 
     def action_open_directory(self):
         row_key = self._row_locations.get_key(self.cursor_row)
-        assert row_key is not None, "No simulation selected."
-        name = row_key.value
-        assert name is not None, "No simulation selected."
 
-        path = get_index()._get_collection_path(self.uid).joinpath(name)
+        if row_key is None or row_key.value is None:
+            self.notify("No simulation selected.", severity="warning")
+            return
+
+        path = get_index()._get_collection_path(self.uid).joinpath(row_key.value)
         with self.app.suspend():
             editor = config_tui.get("editor")
             subprocess.run([editor, path.as_posix()])
