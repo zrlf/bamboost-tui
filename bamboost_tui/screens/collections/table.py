@@ -515,7 +515,6 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
 
     @work(thread=True, exclusive=True)
     async def action_sync(self):
-        import time
 
         if self.remote is not None:
             self.notify(
@@ -530,14 +529,11 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
         def display_sync_progress(current: int, total: int) -> None:
             def update():
                 if bar.is_mounted: # check if widget is still mounted to avoid crashes on exit
-                    bar.display(f"Syncing collection: {current}/{total}")
+                    bar.display_status(f"Syncing collection: {current}/{total}")
             self.app.call_from_thread(update)
-            # Make sure that the sync progress is visible for a minimum time
-            min_time = 1
-            time.sleep(min_time / total)
 
         try:
-            self.app.call_from_thread(bar.display, content="Getting the index instance...")
+            self.app.call_from_thread(bar.display_status, content="Getting the index instance...")
             index = get_index()
             # check if the path is correct
             index.resolve_path(self.uid)

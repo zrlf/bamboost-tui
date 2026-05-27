@@ -24,12 +24,14 @@ Rule {
 
 #footer-area {
     dock: bottom;   /* Stick to the bottom of the screen */
-    height: 2;      /* One line for status, one for footer */
+    height: 1;      /* One line for status, one for footer */
     width: 100%;
     background: $surface;
+    layers: normal status;
 }
 
 StatusFooter {
+    layer: status;
     height: 1;
     width: 100%;
     color: white;
@@ -39,6 +41,7 @@ StatusFooter {
 }
 
 Footer {
+    layer: normal;
     &:ansi {
         background: ansi_black;
     }
