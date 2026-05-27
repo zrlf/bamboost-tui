@@ -382,6 +382,33 @@ class Navigation(
         self.cursor_row = message.y
 
 
+def render_dataset_preview(dataset: Dataset, style: Style, max_size: int = 200) -> Text:
+    import math
+
+    shape = dataset.shape
+    size = math.prod(shape)
+
+    shape_str = f"Shape: {shape}\nSize: {size}\n\n"
+
+    if size == 0:
+        data_str = "[Empty Dataset]"
+
+    elif size > max_size:
+        if len(shape) <= 1:
+            truncated_data = dataset[:max_size]
+
+        else:
+            row_size = math.prod(shape[1:])
+            max_rows = max(1, max_size // row_size)
+            truncated_data = dataset[:max_rows]
+
+        data_str = f"{truncated_data}...\n\n[Preview truncated: showing first {max_size} elements]"
+    else:
+        data_str = str(dataset[...])
+
+    return Text(shape_str + data_str, style=style)
+
+
 class NavigationPreview(VerticalScroll, can_focus=False):
     """The preview widget on the right side to show the content of the highlighted
     object.
@@ -411,9 +438,8 @@ class NavigationPreview(VerticalScroll, can_focus=False):
 
         obj = self._root[self.path]
         if isinstance(obj, Dataset):
-            renderable_object = Text(
-                str(obj[()]), style=self.get_component_rich_style("--content")
-            )
+            renderable_object = render_dataset_preview(
+                obj, style=self.get_component_rich_style("--content"))
         else:
             group = self.get_component_rich_style("--group")
             dataset = self.get_component_rich_style("--dataset")
