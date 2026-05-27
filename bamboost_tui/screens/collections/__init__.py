@@ -120,7 +120,7 @@ class ScreenCollection(Screen, inherit_bindings=False):
                 yield self._tabs
         yield self._table_container
         with Vertical(id="footer-area"):
-            yield StatusFooter(disabled=True)
+            yield StatusFooter()
             yield Footer(disabled=True)
 
     def watch_current_uid(self, _old, new: str | None) -> None:

@@ -526,6 +526,9 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
         
         bar = self.screen.query_one(StatusFooter)
 
+        # TODO: Can be used as a callback function to display the sync status 
+        # IF bamboost.index.sync supports it.
+        # index.sync_collection(self.uid, progress_callback=display_sync_progress)
         def display_sync_progress(current: int, total: int) -> None:
             def update():
                 if bar.is_mounted: # check if widget is still mounted to avoid crashes on exit
@@ -538,7 +541,7 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
             # check if the path is correct
             index.resolve_path(self.uid)
             # sync the collection
-            index.sync_collection(self.uid, progress_callback=display_sync_progress)
+            index.sync_collection(self.uid)
             self.notify("✔️ Synced collection", timeout=1.0)
         finally:
             self.app.call_from_thread(bar.clear)
