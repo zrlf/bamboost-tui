@@ -142,6 +142,10 @@ class GroupData:
     datasets: Sequence[str]
     attrs: AttrsDict
 
+    def __post_init__(self):
+        self.groups = sorted(self.groups, key=lambda x: int(x) if x.isdigit() else x)
+        self.datasets = sorted(self.datasets, key=lambda x: int(x) if x.isdigit() else x)
+
     @property
     def length(self) -> int:
         return len(self.groups) + len(self.datasets)
@@ -432,6 +436,11 @@ class NavigationPreview(VerticalScroll, can_focus=False):
     def compose(self) -> ComposeResult:
         yield Static()
 
+    @property
+    def viewer(self) -> HDFViewer:
+        from typing import cast
+        return cast(HDFViewer, self.screen)
+
     def watch_path(self) -> None:
         if self.path is None:
             return
@@ -441,12 +450,13 @@ class NavigationPreview(VerticalScroll, can_focus=False):
             renderable_object = render_dataset_preview(
                 obj, style=self.get_component_rich_style("--content"))
         else:
-            group = self.get_component_rich_style("--group")
-            dataset = self.get_component_rich_style("--dataset")
+            group_data = self.viewer._get_group_data(path=self.path)
+            group_style = self.get_component_rich_style("--group")
+            dataset_style = self.get_component_rich_style("--dataset")
             renderable_object = Text.assemble(
                 *chain(
-                    [Text(f"{i}\n", style=group) for i in obj.groups()],
-                    [Text(f"{i}\n", style=dataset) for i in obj.datasets()],
+                    [Text(f"{i}\n", style=group_style) for i in group_data.groups],
+                    [Text(f"{i}\n", style=dataset_style) for i in group_data.datasets],
                 )
             )
 
