@@ -434,15 +434,14 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
             cursor_row = self._row_locations.get_key(self.cursor_row)
             targets = [cursor_row] if cursor_row is not None else []
 
-        if not targets:
-            self.notify("No simulation selected.", severity="warning")
-            return
-        
         # Prepare the prompt message
         if len(targets) == 1:
             msg = f"Delete simulation [bold]{targets[0].value}[\bold]?"
-        else:
+        elif len(targets) > 1:
             msg = f"Delete [bold]{len(targets)}[\bold] selected simulations?"
+        else: # no targets
+            self.notify("No simulation selected.", severity="warning")
+            return
 
         def _delete(confirm: bool | None):
             if not confirm:
@@ -460,6 +459,8 @@ class CollectionTable(ModifiedDataTable, KeySubgroupsMixin, inherit_bindings=Fal
                     path = get_index()._get_collection_path(self.uid).joinpath(row_key.value)  # pyright: ignore[reportArgumentType]
                     if path.exists():
                         shutil.rmtree(path)
+
+                    self.selected_rows.discard(row_key)
 
                     # refresh the table
                     self.remove_row(row_key)
